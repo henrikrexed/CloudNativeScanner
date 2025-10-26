@@ -1,0 +1,79 @@
+spring:
+  application:
+    name: topic-analyzer
+  
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/topic_scanner}
+    username: ${SPRING_DATASOURCE_USERNAME:topic_scanner}
+    password: ${SPRING_DATASOURCE_PASSWORD:topic_scanner_password}
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID:topic-processor}
+      key-deserializer: ${SPRING_KAFKA_CONSUMER_KEY_DESERIALIZER:org.apache.kafka.common.serialization.StringDeserializer}
+      value-deserializer: ${SPRING_KAFKA_CONSUMER_VALUE_DESERIALIZER:org.apache.kafka.common.serialization.StringDeserializer}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      properties:
+        spring.json.trusted.packages: "*"
+
+# AI Configuration
+ai:
+  enabled: ${AI_ENABLED:true}
+  openai:
+    api-key: ${OPENAI_API_KEY:your-openai-api-key}
+    base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+    chat:
+      options:
+        model: ${AI_MODEL:gpt-3.5-turbo}
+        temperature: ${AI_TEMPERATURE:0.3}
+        max-tokens: ${AI_MAX_TOKENS:1000}
+  
+  similarity:
+    threshold: ${AI_SIMILARITY_THRESHOLD:0.8}
+    enabled: ${AI_DUPLICATE_DETECTION_ENABLED:true}
+  
+  confidence:
+    threshold: ${AI_CONFIDENCE_THRESHOLD:0.7}
+
+# Kafka Topic Configuration
+kafka:
+  topic:
+    name: ${KAFKA_TOPIC_NAME:topic-scanner}
+
+# Logging
+logging:
+  level:
+    com.cncf.scanner: DEBUG
+    org.springframework.ai: INFO
+    org.springframework.kafka: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+

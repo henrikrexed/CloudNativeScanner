@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RedditScanner.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Topic Scanner Service</a> &gt; <a href="index.source.html" class="el_package">com.cncf.scanner.scanner</a> &gt; <span class="el_source">RedditScanner.java</span></div><h1>RedditScanner.java</h1><pre class="source lang-java linenums">package com.cncf.scanner.scanner;
+
+import com.cncf.scanner.config.DebugConfig;
+import com.cncf.scanner.model.Source;
+import com.cncf.scanner.model.SearchTopic;
+import com.cncf.scanner.service.SearchTopicService;
+import com.cncf.scanner.util.ScanTracer;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Component
+public class RedditScanner implements SourceScanner {
+    
+<span class="fc" id="L27">    private static final Logger logger = LoggerFactory.getLogger(RedditScanner.class);</span>
+    private static final String SOURCE_TYPE = &quot;Reddit&quot;;
+    
+    private final WebClient webClient;
+    private final ObjectMapper objectMapper;
+    private final SearchTopicService searchTopicService;
+    private final DebugConfig debugConfig;
+    
+    @Autowired
+<span class="fc" id="L36">    public RedditScanner(SearchTopicService searchTopicService, DebugConfig debugConfig) {</span>
+<span class="fc" id="L37">        this.webClient = WebClient.builder()</span>
+<span class="fc" id="L38">                .baseUrl(&quot;https://www.reddit.com&quot;)</span>
+<span class="fc" id="L39">                .defaultHeader(&quot;User-Agent&quot;, &quot;CloudNativeScanner/1.0&quot;)</span>
+<span class="fc" id="L40">                .build();</span>
+<span class="fc" id="L41">        this.objectMapper = new ObjectMapper();</span>
+<span class="fc" id="L42">        this.searchTopicService = searchTopicService;</span>
+<span class="fc" id="L43">        this.debugConfig = debugConfig;</span>
+<span class="fc" id="L44">    }</span>
+    
+    @Override
+    public String getSourceType() {
+<span class="fc" id="L48">        return SOURCE_TYPE;</span>
+    }
+    
+    @Override
+    public boolean canHandle(Source source) {
+<span class="fc" id="L53">        return SOURCE_TYPE.equalsIgnoreCase(source.getName());</span>
+    }
+    
+    @Override
+    public List&lt;ScanResult&gt; scan(Source source, LocalDateTime lastScanTime) {
+<span class="nc" id="L58">        ScanTracer.startTrace(&quot;REDDIT_SCAN&quot;, source.getName(), </span>
+<span class="nc" id="L59">                &quot;Starting Reddit scan for source: &quot; + source.getName());</span>
+<span class="nc" id="L60">        Instant scanStart = Instant.now();</span>
+<span class="nc" id="L61">        List&lt;ScanResult&gt; results = new ArrayList&lt;&gt;();</span>
+        
+        try {
+            // Get configurable search topics for this source
+<span class="nc" id="L65">            ScanTracer.logStep(&quot;REDDIT_SCAN&quot;, source.getName(), &quot;GETTING_SEARCH_TOPICS&quot;, </span>
+<span class="nc" id="L66">                    &quot;Fetching search topics for source ID: &quot; + source.getId());</span>
+            
+<span class="nc" id="L68">            List&lt;SearchTopic&gt; searchTopics = searchTopicService.findSearchTopicsNeedingSearch(source.getId());</span>
+            
+<span class="nc bnc" id="L70" title="All 2 branches missed.">            if (searchTopics.isEmpty()) {</span>
+<span class="nc" id="L71">                ScanTracer.logStep(&quot;REDDIT_SCAN&quot;, source.getName(), &quot;NO_TOPICS&quot;, </span>
+                        &quot;No search topics configured for this source&quot;);
+<span class="nc" id="L73">                logger.info(&quot;📭 No search topics configured for source: {}&quot;, source.getName());</span>
+<span class="nc" id="L74">                return results;</span>
+            }
+            
+<span class="nc" id="L77">            ScanTracer.logStep(&quot;REDDIT_SCAN&quot;, source.getName(), &quot;TOPICS_FOUND&quot;, </span>
+<span class="nc" id="L78">                    &quot;Found &quot; + searchTopics.size() + &quot; search topics to process&quot;);</span>
+<span class="nc" id="L79">            logger.info(&quot;🔍 Scanning {} search topics for Reddit source: {}&quot;, searchTopics.size(), source.getName());</span>
+            
+<span class="nc" id="L81">            Map&lt;String, Object&gt; scanMetrics = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L82">            scanMetrics.put(&quot;totalTopics&quot;, searchTopics.size());</span>
+<span class="nc" id="L83">            scanMetrics.put(&quot;successfulTopics&quot;, 0);</span>
+<span class="nc" id="L84">            scanMetrics.put(&quot;failedTopics&quot;, 0);</span>
+<span class="nc" id="L85">            scanMetrics.put(&quot;totalResults&quot;, 0);</span>
+            
+<span class="nc bnc" id="L87" title="All 2 branches missed.">            for (SearchTopic searchTopic : searchTopics) {</span>
+                try {
+<span class="nc" id="L89">                    ScanTracer.logStep(&quot;REDDIT_SCAN&quot;, source.getName(), &quot;PROCESSING_TOPIC&quot;, </span>
+<span class="nc" id="L90">                            &quot;Processing topic: &quot; + searchTopic.getKeyword() + &quot; (ID: &quot; + searchTopic.getId() + &quot;)&quot;);</span>
+                    
+<span class="nc" id="L92">                    List&lt;ScanResult&gt; topicResults = searchReddit(searchTopic, lastScanTime);</span>
+<span class="nc" id="L93">                    results.addAll(topicResults);</span>
+                    
+<span class="nc" id="L95">                    scanMetrics.put(&quot;successfulTopics&quot;, (Integer) scanMetrics.get(&quot;successfulTopics&quot;) + 1);</span>
+<span class="nc" id="L96">                    scanMetrics.put(&quot;totalResults&quot;, (Integer) scanMetrics.get(&quot;totalResults&quot;) + topicResults.size());</span>
+                    
+                    // Update last searched timestamp
+<span class="nc" id="L99">                    searchTopicService.updateLastSearchedAt(searchTopic.getId());</span>
+                    
+<span class="nc" id="L101">                    ScanTracer.logDataCollection(source.getName(), searchTopic.getKeyword(), </span>
+<span class="nc" id="L102">                            topicResults.size(), &quot;Reddit search completed&quot;);</span>
+                    
+<span class="nc" id="L104">                    logger.debug(&quot;✅ Found {} results for search topic: {}&quot;, topicResults.size(), searchTopic.getKeyword());</span>
+                    
+<span class="nc bnc" id="L106" title="All 4 branches missed.">                    if (debugConfig.isDetailedScanLogging() &amp;&amp; !topicResults.isEmpty()) {</span>
+<span class="nc" id="L107">                        logger.debug(&quot;📋 Topic '{}' results: {}&quot;, searchTopic.getKeyword(), </span>
+<span class="nc" id="L108">                                topicResults.stream().map(r -&gt; r.getTitle()).toArray());</span>
+                    }
+                    
+<span class="nc" id="L111">                } catch (Exception e) {</span>
+<span class="nc" id="L112">                    scanMetrics.put(&quot;failedTopics&quot;, (Integer) scanMetrics.get(&quot;failedTopics&quot;) + 1);</span>
+<span class="nc" id="L113">                    ScanTracer.logError(&quot;REDDIT_SCAN&quot;, source.getName(), </span>
+<span class="nc" id="L114">                            &quot;Failed to search topic: &quot; + searchTopic.getKeyword(), e);</span>
+<span class="nc" id="L115">                    logger.error(&quot;❌ Error searching for topic {}: {}&quot;, searchTopic.getKeyword(), e.getMessage(), e);</span>
+<span class="nc" id="L116">                }</span>
+                
+                // Rate limiting
+<span class="nc" id="L119">                long delay = getRequestDelay();</span>
+<span class="nc" id="L120">                ScanTracer.logStep(&quot;REDDIT_SCAN&quot;, source.getName(), &quot;RATE_LIMITING&quot;, </span>
+                        &quot;Sleeping for &quot; + delay + &quot;ms between requests&quot;);
+<span class="nc" id="L122">                Thread.sleep(delay);</span>
+<span class="nc" id="L123">            }</span>
+            
+<span class="nc" id="L125">            Duration scanDuration = Duration.between(scanStart, Instant.now());</span>
+<span class="nc" id="L126">            scanMetrics.put(&quot;scanDurationMs&quot;, scanDuration.toMillis());</span>
+<span class="nc bnc" id="L127" title="All 2 branches missed.">            scanMetrics.put(&quot;avgResultsPerTopic&quot;, searchTopics.size() &gt; 0 ? </span>
+<span class="nc" id="L128">                    (Integer) scanMetrics.get(&quot;totalResults&quot;) / searchTopics.size() : 0);</span>
+            
+<span class="nc" id="L130">            ScanTracer.logMetrics(&quot;REDDIT_SCAN&quot;, source.getName(), scanMetrics);</span>
+            
+<span class="nc" id="L132">            logger.info(&quot;🎯 Reddit scan completed for {}: {} topics processed, {} results found in {}ms&quot;, </span>
+<span class="nc" id="L133">                    source.getName(), searchTopics.size(), results.size(), scanDuration.toMillis());</span>
+            
+<span class="nc" id="L135">        } catch (Exception e) {</span>
+<span class="nc" id="L136">            Duration scanDuration = Duration.between(scanStart, Instant.now());</span>
+<span class="nc" id="L137">            ScanTracer.logError(&quot;REDDIT_SCAN&quot;, source.getName(), </span>
+<span class="nc" id="L138">                    &quot;Reddit scan failed after &quot; + scanDuration.toMillis() + &quot;ms&quot;, e);</span>
+<span class="nc" id="L139">            logger.error(&quot;💥 Error scanning Reddit after {}ms: {}&quot;, scanDuration.toMillis(), e.getMessage(), e);</span>
+        } finally {
+<span class="nc" id="L141">            ScanTracer.endTrace(&quot;REDDIT_SCAN&quot;, source.getName(), </span>
+<span class="nc" id="L142">                    &quot;Reddit scan completed with &quot; + results.size() + &quot; results&quot;);</span>
+        }
+        
+<span class="nc" id="L145">        return results;</span>
+    }
+    
+    private List&lt;ScanResult&gt; searchReddit(SearchTopic searchTopic, LocalDateTime lastScanTime) {
+<span class="nc" id="L149">        List&lt;ScanResult&gt; results = new ArrayList&lt;&gt;();</span>
+        
+        try {
+            // Reddit search can be done in multiple ways:
+            // 1. Search specific subreddits
+            // 2. Search across all of Reddit
+            // 3. Browse subreddit by keyword
+            
+<span class="nc bnc" id="L157" title="All 2 branches missed.">            String searchQuery = searchTopic.getSearchQuery() != null ? </span>
+<span class="nc" id="L158">                    searchTopic.getSearchQuery() : searchTopic.getKeyword();</span>
+            
+            // For now, we'll search in relevant subreddits
+<span class="nc" id="L161">            String[] subreddits = getRelevantSubreddits(searchQuery);</span>
+            
+<span class="nc bnc" id="L163" title="All 2 branches missed.">            for (String subreddit : subreddits) {</span>
+                try {
+<span class="nc" id="L165">                    List&lt;ScanResult&gt; subredditResults = searchSubreddit(subreddit, searchQuery, searchTopic, lastScanTime);</span>
+<span class="nc" id="L166">                    results.addAll(subredditResults);</span>
+                    
+<span class="nc" id="L168">                    Thread.sleep(1000); // Rate limiting between subreddits</span>
+                    
+<span class="nc" id="L170">                } catch (Exception e) {</span>
+<span class="nc" id="L171">                    logger.error(&quot;Error searching subreddit {}: {}&quot;, subreddit, e.getMessage(), e);</span>
+<span class="nc" id="L172">                }</span>
+            }
+            
+<span class="nc" id="L175">        } catch (Exception e) {</span>
+<span class="nc" id="L176">            logger.error(&quot;Error searching Reddit for topic {}: {}&quot;, searchTopic.getKeyword(), e.getMessage(), e);</span>
+<span class="nc" id="L177">        }</span>
+        
+<span class="nc" id="L179">        return results;</span>
+    }
+    
+    private List&lt;ScanResult&gt; searchSubreddit(String subreddit, String searchQuery, SearchTopic searchTopic, LocalDateTime lastScanTime) {
+<span class="nc" id="L183">        List&lt;ScanResult&gt; results = new ArrayList&lt;&gt;();</span>
+        
+        try {
+            // Search in subreddit
+<span class="nc" id="L187">            String searchUrl = String.format(&quot;/r/%s/search.json?q=%s&amp;sort=new&amp;limit=%d&quot;, </span>
+<span class="nc" id="L188">                    subreddit, searchQuery, Math.min(searchTopic.getMaxResults(), 25));</span>
+            
+<span class="nc" id="L190">            String response = webClient.get()</span>
+<span class="nc" id="L191">                    .uri(searchUrl)</span>
+<span class="nc" id="L192">                    .retrieve()</span>
+<span class="nc" id="L193">                    .bodyToMono(String.class)</span>
+<span class="nc" id="L194">                    .block();</span>
+            
+<span class="nc bnc" id="L196" title="All 2 branches missed.">            if (response != null) {</span>
+<span class="nc" id="L197">                JsonNode root = objectMapper.readTree(response);</span>
+<span class="nc" id="L198">                JsonNode data = root.get(&quot;data&quot;);</span>
+<span class="nc" id="L199">                JsonNode children = data.get(&quot;children&quot;);</span>
+                
+<span class="nc bnc" id="L201" title="All 4 branches missed.">                if (children != null &amp;&amp; children.isArray()) {</span>
+<span class="nc bnc" id="L202" title="All 2 branches missed.">                    for (JsonNode child : children) {</span>
+<span class="nc" id="L203">                        JsonNode postData = child.get(&quot;data&quot;);</span>
+<span class="nc" id="L204">                        ScanResult result = parseRedditPost(postData, subreddit, searchTopic);</span>
+<span class="nc bnc" id="L205" title="All 4 branches missed.">                        if (result != null &amp;&amp; isNewOrUpdated(result, lastScanTime)) {</span>
+<span class="nc" id="L206">                            results.add(result);</span>
+                        }
+<span class="nc" id="L208">                    }</span>
+                }
+            }
+            
+<span class="nc" id="L212">        } catch (Exception e) {</span>
+<span class="nc" id="L213">            logger.error(&quot;Error searching subreddit {}: {}&quot;, subreddit, e.getMessage(), e);</span>
+<span class="nc" id="L214">        }</span>
+        
+<span class="nc" id="L216">        return results;</span>
+    }
+    
+    private String[] getRelevantSubreddits(String searchQuery) {
+        // Map search queries to relevant subreddits
+<span class="nc" id="L221">        String query = searchQuery.toLowerCase();</span>
+        
+<span class="nc bnc" id="L223" title="All 4 branches missed.">        if (query.contains(&quot;kubernetes&quot;) || query.contains(&quot;k8s&quot;)) {</span>
+<span class="nc" id="L224">            return new String[]{&quot;kubernetes&quot;, &quot;k8s&quot;, &quot;devops&quot;};</span>
+<span class="nc bnc" id="L225" title="All 2 branches missed.">        } else if (query.contains(&quot;docker&quot;)) {</span>
+<span class="nc" id="L226">            return new String[]{&quot;docker&quot;, &quot;devops&quot;, &quot;containers&quot;};</span>
+<span class="nc bnc" id="L227" title="All 2 branches missed.">        } else if (query.contains(&quot;microservices&quot;)) {</span>
+<span class="nc" id="L228">            return new String[]{&quot;microservices&quot;, &quot;devops&quot;, &quot;programming&quot;};</span>
+<span class="nc bnc" id="L229" title="All 4 branches missed.">        } else if (query.contains(&quot;cloud&quot;) || query.contains(&quot;native&quot;)) {</span>
+<span class="nc" id="L230">            return new String[]{&quot;cloudnative&quot;, &quot;devops&quot;, &quot;aws&quot;, &quot;gcp&quot;, &quot;azure&quot;};</span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">        } else if (query.contains(&quot;devops&quot;)) {</span>
+<span class="nc" id="L232">            return new String[]{&quot;devops&quot;, &quot;sysadmin&quot;, &quot;kubernetes&quot;};</span>
+        } else {
+            // Default subreddits for general cloud-native topics
+<span class="nc" id="L235">            return new String[]{&quot;devops&quot;, &quot;kubernetes&quot;, &quot;docker&quot;, &quot;programming&quot;};</span>
+        }
+    }
+    
+    private ScanResult parseRedditPost(JsonNode postData, String subreddit, SearchTopic searchTopic) {
+        try {
+<span class="nc" id="L241">            ScanResult result = new ScanResult();</span>
+            
+<span class="nc" id="L243">            result.setExternalId(postData.get(&quot;id&quot;).asText());</span>
+<span class="nc" id="L244">            result.setTitle(postData.get(&quot;title&quot;).asText());</span>
+<span class="nc" id="L245">            result.setUrl(&quot;https://reddit.com&quot; + postData.get(&quot;permalink&quot;).asText());</span>
+<span class="nc" id="L246">            result.setAuthor(postData.get(&quot;author&quot;).asText());</span>
+<span class="nc" id="L247">            result.setScore(postData.get(&quot;score&quot;).asInt());</span>
+<span class="nc" id="L248">            result.setViewCount(postData.get(&quot;num_comments&quot;).asInt());</span>
+<span class="nc" id="L249">            result.setInteractionCount(postData.get(&quot;num_comments&quot;).asInt());</span>
+            
+            // Parse creation date
+<span class="nc" id="L252">            double creationDate = postData.get(&quot;created_utc&quot;).asDouble();</span>
+<span class="nc" id="L253">            result.setPublishedAt(LocalDateTime.ofEpochSecond((long) creationDate, 0, </span>
+                    java.time.ZoneOffset.UTC));
+            
+            // Get post content
+<span class="nc" id="L257">            String selftext = postData.get(&quot;selftext&quot;).asText();</span>
+<span class="nc bnc" id="L258" title="All 6 branches missed.">            if (selftext != null &amp;&amp; !selftext.isEmpty() &amp;&amp; !&quot;[deleted]&quot;.equals(selftext)) {</span>
+<span class="nc" id="L259">                result.setContent(selftext);</span>
+            } else {
+                // For link posts, use the title as content
+<span class="nc" id="L262">                result.setContent(postData.get(&quot;title&quot;).asText());</span>
+            }
+            
+            // Add metadata including search topic information
+<span class="nc" id="L266">            Map&lt;String, Object&gt; metadata = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L267">            metadata.put(&quot;subreddit&quot;, subreddit);</span>
+<span class="nc" id="L268">            metadata.put(&quot;subreddit_id&quot;, postData.get(&quot;subreddit_id&quot;).asText());</span>
+<span class="nc" id="L269">            metadata.put(&quot;is_self&quot;, postData.get(&quot;is_self&quot;).asBoolean());</span>
+<span class="nc" id="L270">            metadata.put(&quot;domain&quot;, postData.get(&quot;domain&quot;).asText());</span>
+<span class="nc" id="L271">            metadata.put(&quot;url&quot;, postData.get(&quot;url&quot;).asText());</span>
+<span class="nc" id="L272">            metadata.put(&quot;over_18&quot;, postData.get(&quot;over_18&quot;).asBoolean());</span>
+<span class="nc" id="L273">            metadata.put(&quot;spoiler&quot;, postData.get(&quot;spoiler&quot;).asBoolean());</span>
+<span class="nc" id="L274">            metadata.put(&quot;search_topic_id&quot;, searchTopic.getId());</span>
+<span class="nc" id="L275">            metadata.put(&quot;search_topic_keyword&quot;, searchTopic.getKeyword());</span>
+<span class="nc" id="L276">            metadata.put(&quot;search_topic_priority&quot;, searchTopic.getPriority());</span>
+<span class="nc" id="L277">            result.setMetadata(metadata);</span>
+            
+<span class="nc" id="L279">            return result;</span>
+            
+<span class="nc" id="L281">        } catch (Exception e) {</span>
+<span class="nc" id="L282">            logger.error(&quot;Error parsing Reddit post: {}&quot;, e.getMessage(), e);</span>
+<span class="nc" id="L283">            return null;</span>
+        }
+    }
+    
+    private boolean isNewOrUpdated(ScanResult result, LocalDateTime lastScanTime) {
+<span class="nc bnc" id="L288" title="All 2 branches missed.">        if (lastScanTime == null) {</span>
+<span class="nc" id="L289">            return true;</span>
+        }
+<span class="nc" id="L291">        return result.getPublishedAt().isAfter(lastScanTime);</span>
+    }
+    
+    @Override
+    public int getRateLimit() {
+<span class="nc" id="L296">        return 60; // Reddit allows 60 requests per minute</span>
+    }
+    
+    @Override
+    public long getRequestDelay() {
+<span class="nc" id="L301">        return 1000; // 1 second between requests</span>
+    }
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

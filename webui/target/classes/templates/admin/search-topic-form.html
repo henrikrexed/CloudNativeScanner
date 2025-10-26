@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${searchTopic.id == null ? 'Add New Search Topic' : 'Edit Search Topic'}">Search Topic Form</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-search"></i> Cloud Native Topic Scanner
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">Public View</a>
+                <a class="nav-link" href="/admin">Admin Dashboard</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/admin">Admin Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="/admin/search-topics">Search Topics</a></li>
+                <li class="breadcrumb-item active" th:text="${searchTopic.id == null ? 'Add New' : 'Edit'}">Form</li>
+            </ol>
+        </nav>
+
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 th:text="${searchTopic.id == null ? 'Add New Search Topic' : 'Edit Search Topic'}">
+                            <i class="fas fa-search"></i> Search Topic Form
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <form th:action="@{/admin/search-topics}" th:object="${searchTopic}" method="post">
+                            <input type="hidden" th:field="*{id}" />
+                            
+                            <div class="mb-3">
+                                <label for="source" class="form-label">Source *</label>
+                                <select class="form-select" th:field="*{source}" required>
+                                    <option value="">Select a source</option>
+                                    <option th:each="source : ${sources}" 
+                                            th:value="${source.id}" 
+                                            th:text="${source.name}">
+                                        Source Name
+                                    </option>
+                                </select>
+                                <div class="form-text">Select the data source for this search topic</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="keyword" class="form-label">Keyword *</label>
+                                <input type="text" class="form-control" id="keyword" th:field="*{keyword}" 
+                                       placeholder="e.g., kubernetes, docker, microservices" required>
+                                <div class="form-text">Primary keyword for this search topic</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="searchQuery" class="form-label">Search Query</label>
+                                <input type="text" class="form-control" id="searchQuery" th:field="*{searchQuery}" 
+                                       placeholder="e.g., kubernetes deployment, docker containers">
+                                <div class="form-text">Specific search query (optional, defaults to keyword)</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="description" class="form-label">Description</label>
+                                <textarea class="form-control" id="description" th:field="*{description}" rows="3"
+                                          placeholder="Brief description of this search topic"></textarea>
+                                <div class="form-text">Optional description for this search topic</div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="priority" class="form-label">Priority</label>
+                                        <select class="form-select" id="priority" th:field="*{priority}">
+                                            <option value="1">High (1)</option>
+                                            <option value="2">Medium (2)</option>
+                                            <option value="3">Low (3)</option>
+                                        </select>
+                                        <div class="form-text">Search priority level</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="maxResults" class="form-label">Max Results</label>
+                                        <input type="number" class="form-control" id="maxResults" th:field="*{maxResults}" 
+                                               min="1" max="100" value="50">
+                                        <div class="form-text">Maximum results per search</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="searchFrequencyHours" class="form-label">Search Frequency (hours)</label>
+                                        <select class="form-select" id="searchFrequencyHours" th:field="*{searchFrequencyHours}">
+                                            <option value="1">Every hour</option>
+                                            <option value="6">Every 6 hours</option>
+                                            <option value="12">Every 12 hours</option>
+                                            <option value="24" selected>Daily</option>
+                                            <option value="48">Every 2 days</option>
+                                            <option value="168">Weekly</option>
+                                        </select>
+                                        <div class="form-text">How often to search</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="isActive" 
+                                           th:field="*{isActive}" th:checked="*{isActive}">
+                                    <label class="form-check-label" for="isActive">
+                                        Active (enabled for searching)
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <a href="/admin/search-topics" class="btn btn-secondary me-md-2">
+                                    <i class="fas fa-times"></i> Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> 
+                                    <span th:text="${searchTopic.id == null ? 'Create Search Topic' : 'Update Search Topic'}">Save</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Help Section -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-question-circle"></i> Search Topic Configuration Help</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6>Search Topic Examples:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card border-primary mb-3">
+                                    <div class="card-body">
+                                        <h6 class="card-title">
+                                            <i class="fab fa-stack-overflow text-primary"></i> StackOverflow
+                                        </h6>
+                                        <p class="card-text small">
+                                            <strong>Keyword:</strong> kubernetes<br>
+                                            <strong>Search Query:</strong> kubernetes deployment<br>
+                                            <strong>Max Results:</strong> 50<br>
+                                            <strong>Priority:</strong> High
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card border-danger mb-3">
+                                    <div class="card-body">
+                                        <h6 class="card-title">
+                                            <i class="fab fa-reddit text-danger"></i> Reddit
+                                        </h6>
+                                        <p class="card-text small">
+                                            <strong>Keyword:</strong> docker<br>
+                                            <strong>Search Query:</strong> docker containers<br>
+                                            <strong>Max Results:</strong> 25<br>
+                                            <strong>Priority:</strong> High
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <h6>Priority Guidelines:</h6>
+                        <ul class="small">
+                            <li><strong>High (1):</strong> Core cloud-native technologies (Kubernetes, Docker, etc.)</li>
+                            <li><strong>Medium (2):</strong> Important but less critical topics</li>
+                            <li><strong>Low (3):</strong> Nice-to-have or experimental topics</li>
+                        </ul>
+                        
+                        <h6>Search Frequency Guidelines:</h6>
+                        <ul class="small">
+                            <li><strong>Every hour:</strong> For very active topics with high volume</li>
+                            <li><strong>Daily:</strong> Recommended for most topics (default)</li>
+                            <li><strong>Weekly:</strong> For less active or specialized topics</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-light mt-5 py-4">
+        <div class="container text-center">
+            <p class="text-muted mb-0">
+                <i class="fas fa-shield-alt"></i> 
+                Admin Panel - Cloud Native Topic Scanner
+            </p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Pre-fill form if URL parameters are provided
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            if (urlParams.get('keyword')) {
+                document.getElementById('keyword').value = urlParams.get('keyword');
+            }
+            if (urlParams.get('searchQuery')) {
+                document.getElementById('searchQuery').value = urlParams.get('searchQuery');
+            }
+            if (urlParams.get('description')) {
+                document.getElementById('description').value = urlParams.get('description');
+            }
+        });
+    </script>
+</body>
+</html>
+
+

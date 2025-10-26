@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TopicService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Shared Module</a> &gt; <a href="index.source.html" class="el_package">com.cncf.scanner.service</a> &gt; <span class="el_source">TopicService.java</span></div><h1>TopicService.java</h1><pre class="source lang-java linenums">package com.cncf.scanner.service;
+
+import com.cncf.scanner.model.*;
+import com.cncf.scanner.repository.TopicRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Optional;
+
+@Service
+@Transactional
+public class TopicService {
+    
+<span class="nc" id="L18">    private static final Logger logger = LoggerFactory.getLogger(TopicService.class);</span>
+    
+    private final TopicRepository topicRepository;
+    
+    @Autowired
+<span class="nc" id="L23">    public TopicService(TopicRepository topicRepository) {</span>
+<span class="nc" id="L24">        this.topicRepository = topicRepository;</span>
+<span class="nc" id="L25">    }</span>
+    
+    /**
+     * Save or update a topic
+     */
+    public Topic save(Topic topic) {
+<span class="nc" id="L31">        return topicRepository.save(topic);</span>
+    }
+    
+    /**
+     * Find topic by ID
+     */
+    public Optional&lt;Topic&gt; findById(Long id) {
+<span class="nc" id="L38">        return topicRepository.findById(id);</span>
+    }
+    
+    /**
+     * Find topic by source and external ID
+     */
+    public Topic findBySourceAndExternalId(Long sourceId, String externalId) {
+<span class="nc" id="L45">        return topicRepository.findBySourceIdAndExternalId(sourceId, externalId).orElse(null);</span>
+    }
+    
+    /**
+     * Check if topic exists
+     */
+    public boolean existsBySourceAndExternalId(Long sourceId, String externalId) {
+<span class="nc" id="L52">        return topicRepository.findBySourceIdAndExternalId(sourceId, externalId).isPresent();</span>
+    }
+    
+    /**
+     * Find topics by source
+     */
+    public List&lt;Topic&gt; findBySourceId(Long sourceId) {
+<span class="nc" id="L59">        return topicRepository.findBySourceId(sourceId);</span>
+    }
+    
+    /**
+     * Find topics by theme
+     */
+    public List&lt;Topic&gt; findByThemeId(Long themeId) {
+<span class="nc" id="L66">        return topicRepository.findByThemeId(themeId);</span>
+    }
+    
+    /**
+     * Find recent topics
+     */
+    public List&lt;Topic&gt; findRecentTopics() {
+<span class="nc" id="L73">        return topicRepository.findRecentTopics();</span>
+    }
+    
+    /**
+     * Find popular topics
+     */
+    public List&lt;Topic&gt; findPopularTopics(Integer minInteractions) {
+<span class="nc" id="L80">        return topicRepository.findPopularTopics(minInteractions);</span>
+    }
+    
+    /**
+     * Add a theme classification to a topic
+     */
+    public void addTopicTheme(Topic topic, Theme theme, Double confidenceScore) {
+<span class="nc" id="L87">        TopicTheme topicTheme = new TopicTheme(topic, theme, confidenceScore);</span>
+<span class="nc" id="L88">        topic.getTopicThemes().add(topicTheme);</span>
+<span class="nc" id="L89">        topicRepository.save(topic);</span>
+        
+<span class="nc" id="L91">        logger.debug(&quot;Added theme {} to topic {} with confidence {}&quot;, </span>
+<span class="nc" id="L92">                theme.getName(), topic.getTitle(), confidenceScore);</span>
+<span class="nc" id="L93">    }</span>
+    
+    /**
+     * Remove a theme classification from a topic
+     */
+    public void removeTopicTheme(Topic topic, Theme theme) {
+<span class="nc" id="L99">        topic.getTopicThemes().removeIf(tt -&gt; tt.getTheme().getId().equals(theme.getId()));</span>
+<span class="nc" id="L100">        topicRepository.save(topic);</span>
+        
+<span class="nc" id="L102">        logger.debug(&quot;Removed theme {} from topic {}&quot;, theme.getName(), topic.getTitle());</span>
+<span class="nc" id="L103">    }</span>
+    
+    /**
+     * Get topic statistics
+     */
+    public long countBySourceId(Long sourceId) {
+<span class="nc" id="L109">        return topicRepository.countBySourceId(sourceId);</span>
+    }
+    
+    /**
+     * Delete topic
+     */
+    public void delete(Long id) {
+<span class="nc" id="L116">        topicRepository.deleteById(id);</span>
+<span class="nc" id="L117">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ThemeService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Shared Module</a> &gt; <a href="index.source.html" class="el_package">com.cncf.scanner.service</a> &gt; <span class="el_source">ThemeService.java</span></div><h1>ThemeService.java</h1><pre class="source lang-java linenums">package com.cncf.scanner.service;
+
+import com.cncf.scanner.model.Theme;
+import com.cncf.scanner.repository.ThemeRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Optional;
+
+@Service
+@Transactional
+public class ThemeService {
+    
+<span class="nc" id="L18">    private static final Logger logger = LoggerFactory.getLogger(ThemeService.class);</span>
+    
+    private final ThemeRepository themeRepository;
+    
+    @Autowired
+<span class="nc" id="L23">    public ThemeService(ThemeRepository themeRepository) {</span>
+<span class="nc" id="L24">        this.themeRepository = themeRepository;</span>
+<span class="nc" id="L25">    }</span>
+    
+    /**
+     * Find all themes
+     */
+    public List&lt;Theme&gt; findAll() {
+<span class="nc" id="L31">        return themeRepository.findAll();</span>
+    }
+    
+    /**
+     * Find theme by ID
+     */
+    public Optional&lt;Theme&gt; findById(Long id) {
+<span class="nc" id="L38">        return themeRepository.findById(id);</span>
+    }
+    
+    /**
+     * Find theme by name
+     */
+    public Theme findByName(String name) {
+<span class="nc" id="L45">        return themeRepository.findByName(name).orElse(null);</span>
+    }
+    
+    /**
+     * Save or update a theme
+     */
+    public Theme save(Theme theme) {
+<span class="nc" id="L52">        return themeRepository.save(theme);</span>
+    }
+    
+    /**
+     * Create a new theme
+     */
+    public Theme createTheme(String name, String description) {
+<span class="nc bnc" id="L59" title="All 2 branches missed.">        if (themeRepository.existsByName(name)) {</span>
+<span class="nc" id="L60">            throw new IllegalArgumentException(&quot;Theme with name '&quot; + name + &quot;' already exists&quot;);</span>
+        }
+        
+<span class="nc" id="L63">        Theme theme = new Theme(name, description);</span>
+<span class="nc" id="L64">        return themeRepository.save(theme);</span>
+    }
+    
+    /**
+     * Update theme
+     */
+    public Theme updateTheme(Long id, String name, String description) {
+<span class="nc" id="L71">        Theme theme = themeRepository.findById(id)</span>
+<span class="nc" id="L72">                .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Theme not found with id: &quot; + id));</span>
+        
+<span class="nc" id="L74">        theme.setName(name);</span>
+<span class="nc" id="L75">        theme.setDescription(description);</span>
+        
+<span class="nc" id="L77">        return themeRepository.save(theme);</span>
+    }
+    
+    /**
+     * Delete theme
+     */
+    public void delete(Long id) {
+<span class="nc" id="L84">        themeRepository.deleteById(id);</span>
+<span class="nc" id="L85">    }</span>
+    
+    /**
+     * Check if theme exists
+     */
+    public boolean existsByName(String name) {
+<span class="nc" id="L91">        return themeRepository.existsByName(name);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

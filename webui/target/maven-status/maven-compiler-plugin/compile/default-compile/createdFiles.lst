@@ -1,0 +1,9 @@
+com/cncf/scanner/controller/SearchTopicController.class
+com/cncf/scanner/service/DataInitializationService.class
+com/cncf/scanner/controller/AIConfigController.class
+com/cncf/scanner/controller/AdminController.class
+com/cncf/scanner/service/ScanHistoryService.class
+com/cncf/scanner/service/ScanHistoryService$ScanStatistics.class
+com/cncf/scanner/controller/TopicController.class
+com/cncf/scanner/controller/MonitoringController.class
+com/cncf/scanner/WebUIApplication.class

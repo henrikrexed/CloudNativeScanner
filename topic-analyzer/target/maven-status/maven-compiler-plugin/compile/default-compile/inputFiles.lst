@@ -1,0 +1,11 @@
+/Users/henrik.rexed/Library/CloudStorage/OneDrive-Dynatrace/Documents/CNCF/TopicScanner/CloudNativeScanner/topic-analyzer/src/main/java/com/cncf/scanner/TopicAnalyzerApplication.java
+/Users/henrik.rexed/Library/CloudStorage/OneDrive-Dynatrace/Documents/CNCF/TopicScanner/CloudNativeScanner/topic-analyzer/src/main/java/com/cncf/scanner/ai/AISemanticSimilarityService.java
+/Users/henrik.rexed/Library/CloudStorage/OneDrive-Dynatrace/Documents/CNCF/TopicScanner/CloudNativeScanner/topic-analyzer/src/main/java/com/cncf/scanner/ai/AITopicAnalysisService.java
+/Users/henrik.rexed/Library/CloudStorage/OneDrive-Dynatrace/Documents/CNCF/TopicScanner/CloudNativeScanner/topic-analyzer/src/main/java/com/cncf/scanner/kafka/TopicConsumer.java
+/Users/henrik.rexed/Library/CloudStorage/OneDrive-Dynatrace/Documents/CNCF/TopicScanner/CloudNativeScanner/topic-analyzer/src/main/java/com/cncf/scanner/kafka/TopicMessage.java
+/Users/henrik.rexed/Library/CloudStorage/OneDrive-Dynatrace/Documents/CNCF/TopicScanner/CloudNativeScanner/topic-analyzer/src/main/java/com/cncf/scanner/model/TopicAnalysis.java
+/Users/henrik.rexed/Library/CloudStorage/OneDrive-Dynatrace/Documents/CNCF/TopicScanner/CloudNativeScanner/topic-analyzer/src/main/java/com/cncf/scanner/repository/TopicAnalysisRepository.java
+/Users/henrik.rexed/Library/CloudStorage/OneDrive-Dynatrace/Documents/CNCF/TopicScanner/CloudNativeScanner/topic-analyzer/src/main/java/com/cncf/scanner/service/ClassificationService.java
+/Users/henrik.rexed/Library/CloudStorage/OneDrive-Dynatrace/Documents/CNCF/TopicScanner/CloudNativeScanner/topic-analyzer/src/main/java/com/cncf/scanner/service/EnhancedClassificationService.java
+/Users/henrik.rexed/Library/CloudStorage/OneDrive-Dynatrace/Documents/CNCF/TopicScanner/CloudNativeScanner/topic-analyzer/src/main/java/com/cncf/scanner/service/ThemeClassification.java
+/Users/henrik.rexed/Library/CloudStorage/OneDrive-Dynatrace/Documents/CNCF/TopicScanner/CloudNativeScanner/topic-analyzer/src/main/java/com/cncf/scanner/service/TopicAnalysisService.java

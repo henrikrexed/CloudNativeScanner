@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ScanTracer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Topic Scanner Service</a> &gt; <a href="index.source.html" class="el_package">com.cncf.scanner.util</a> &gt; <span class="el_source">ScanTracer.java</span></div><h1>ScanTracer.java</h1><pre class="source lang-java linenums">package com.cncf.scanner.util;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
+
+/**
+ * Utility class for tracing scan operations and performance monitoring
+ */
+<span class="nc" id="L15">public class ScanTracer {</span>
+    
+<span class="fc" id="L17">    private static final Logger logger = LoggerFactory.getLogger(ScanTracer.class);</span>
+<span class="fc" id="L18">    private static final Map&lt;String, Instant&gt; activeTraces = new ConcurrentHashMap&lt;&gt;();</span>
+    
+    /**
+     * Start a trace for a specific operation
+     */
+    public static void startTrace(String operation, String sourceName, String details) {
+<span class="fc" id="L24">        String traceId = generateTraceId(operation, sourceName);</span>
+<span class="fc" id="L25">        Instant startTime = Instant.now();</span>
+<span class="fc" id="L26">        activeTraces.put(traceId, startTime);</span>
+        
+<span class="fc" id="L28">        MDC.put(&quot;traceId&quot;, traceId);</span>
+<span class="fc" id="L29">        MDC.put(&quot;operation&quot;, operation);</span>
+<span class="fc" id="L30">        MDC.put(&quot;source&quot;, sourceName);</span>
+        
+<span class="fc" id="L32">        logger.debug(&quot;🔍 Starting trace: {} for source: {} - {}&quot;, operation, sourceName, details);</span>
+<span class="fc" id="L33">    }</span>
+    
+    /**
+     * End a trace and log the duration
+     */
+    public static void endTrace(String operation, String sourceName, String result) {
+<span class="fc" id="L39">        String traceId = generateTraceId(operation, sourceName);</span>
+<span class="fc" id="L40">        Instant startTime = activeTraces.remove(traceId);</span>
+        
+<span class="pc bpc" id="L42" title="1 of 2 branches missed.">        if (startTime != null) {</span>
+<span class="fc" id="L43">            Duration duration = Duration.between(startTime, Instant.now());</span>
+<span class="fc" id="L44">            logger.debug(&quot;✅ Completed trace: {} for source: {} in {}ms - {}&quot;, </span>
+<span class="fc" id="L45">                    operation, sourceName, duration.toMillis(), result);</span>
+        }
+        
+        // Clear MDC for this thread
+<span class="fc" id="L49">        MDC.clear();</span>
+<span class="fc" id="L50">    }</span>
+    
+    /**
+     * Log a step within a trace
+     */
+    public static void logStep(String operation, String sourceName, String step, String details) {
+<span class="fc" id="L56">        String traceId = generateTraceId(operation, sourceName);</span>
+<span class="fc" id="L57">        MDC.put(&quot;traceId&quot;, traceId);</span>
+<span class="fc" id="L58">        MDC.put(&quot;operation&quot;, operation);</span>
+<span class="fc" id="L59">        MDC.put(&quot;source&quot;, sourceName);</span>
+<span class="fc" id="L60">        MDC.put(&quot;step&quot;, step);</span>
+        
+<span class="fc" id="L62">        logger.debug(&quot;📋 Step: {} - {}&quot;, step, details);</span>
+<span class="fc" id="L63">    }</span>
+    
+    /**
+     * Log an error within a trace
+     */
+    public static void logError(String operation, String sourceName, String error, Exception e) {
+<span class="nc" id="L69">        String traceId = generateTraceId(operation, sourceName);</span>
+<span class="nc" id="L70">        MDC.put(&quot;traceId&quot;, traceId);</span>
+<span class="nc" id="L71">        MDC.put(&quot;operation&quot;, operation);</span>
+<span class="nc" id="L72">        MDC.put(&quot;source&quot;, sourceName);</span>
+        
+<span class="nc" id="L74">        logger.error(&quot;❌ Error in {} for source {}: {} - {}&quot;, operation, sourceName, error, e.getMessage(), e);</span>
+<span class="nc" id="L75">    }</span>
+    
+    /**
+     * Log performance metrics
+     */
+    public static void logMetrics(String operation, String sourceName, Map&lt;String, Object&gt; metrics) {
+<span class="fc" id="L81">        String traceId = generateTraceId(operation, sourceName);</span>
+<span class="fc" id="L82">        MDC.put(&quot;traceId&quot;, traceId);</span>
+<span class="fc" id="L83">        MDC.put(&quot;operation&quot;, operation);</span>
+<span class="fc" id="L84">        MDC.put(&quot;source&quot;, sourceName);</span>
+        
+<span class="fc" id="L86">        StringBuilder metricsStr = new StringBuilder(&quot;📊 Metrics: &quot;);</span>
+<span class="fc" id="L87">        metrics.forEach((key, value) -&gt; metricsStr.append(key).append(&quot;=&quot;).append(value).append(&quot; &quot;));</span>
+        
+<span class="fc" id="L89">        logger.debug(metricsStr.toString());</span>
+<span class="fc" id="L90">    }</span>
+    
+    /**
+     * Generate a unique trace ID
+     */
+    private static String generateTraceId(String operation, String sourceName) {
+<span class="fc" id="L96">        return String.format(&quot;%s-%s-%d&quot;, operation, sourceName, Thread.currentThread().getId());</span>
+    }
+    
+    /**
+     * Log HTTP request details
+     */
+    public static void logHttpRequest(String method, String url, Map&lt;String, String&gt; headers, String body) {
+<span class="nc" id="L103">        logger.debug(&quot;🌐 HTTP Request: {} {} - Headers: {} - Body: {}&quot;, method, url, headers, body);</span>
+<span class="nc" id="L104">    }</span>
+    
+    /**
+     * Log HTTP response details
+     */
+    public static void logHttpResponse(String url, int statusCode, String responseBody, long responseTimeMs) {
+<span class="nc" id="L110">        logger.debug(&quot;📡 HTTP Response: {} - Status: {} - Time: {}ms - Body: {}&quot;, </span>
+<span class="nc" id="L111">                url, statusCode, responseTimeMs, responseBody);</span>
+<span class="nc" id="L112">    }</span>
+    
+    /**
+     * Log data collection details
+     */
+    public static void logDataCollection(String sourceName, String topic, int itemsFound, String details) {
+<span class="nc" id="L118">        logger.debug(&quot;📥 Data Collection: Source={} Topic={} Items={} - {}&quot;, </span>
+<span class="nc" id="L119">                sourceName, topic, itemsFound, details);</span>
+<span class="nc" id="L120">    }</span>
+    
+    /**
+     * Log algorithm flow
+     */
+    public static void logAlgorithmFlow(String sourceName, String step, String input, String output) {
+<span class="nc" id="L126">        logger.debug(&quot;🔄 Algorithm Flow: Source={} Step={} Input={} Output={}&quot;, </span>
+                sourceName, step, input, output);
+<span class="nc" id="L128">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Configuration - Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-search"></i> Cloud Native Topic Scanner
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">Public View</a>
+                <a class="nav-link" href="/admin">Admin Dashboard</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/admin">Admin Dashboard</a></li>
+                <li class="breadcrumb-item active">System Configuration</li>
+            </ol>
+        </nav>
+
+        <div class="row">
+            <div class="col-12">
+                <h1><i class="fas fa-cog"></i> System Configuration</h1>
+                <p class="lead">Configure scanning schedule, Kafka settings, and system parameters</p>
+            </div>
+        </div>
+
+        <!-- Flash Messages -->
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show">
+            <i class="fas fa-check-circle"></i> <span th:text="${successMessage}">Success message</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show">
+            <i class="fas fa-exclamation-circle"></i> <span th:text="${errorMessage}">Error message</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <form th:action="@{/admin/config}" method="post">
+            <div class="row">
+                <!-- Scanning Configuration -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h5><i class="fas fa-clock"></i> Scanning Configuration</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="cronSchedule" class="form-label">Cron Schedule</label>
+                                <input type="text" class="form-control" id="cronSchedule" name="cronSchedule" 
+                                       th:value="${cronSchedule}" placeholder="0 2 * * *">
+                                <div class="form-text">
+                                    Cron expression for automatic scanning (default: daily at 2 AM)
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="maxTopicsPerScan" class="form-label">Max Topics Per Scan</label>
+                                <input type="number" class="form-control" id="maxTopicsPerScan" name="maxTopicsPerScan" 
+                                       th:value="${maxTopicsPerScan}" min="1" max="1000">
+                                <div class="form-text">
+                                    Maximum number of topics to process per source per scan
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Common Schedules</label>
+                                <div class="btn-group-vertical w-100" role="group">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" 
+                                            onclick="setCronSchedule('0 */6 * * *')">
+                                        Every 6 hours
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" 
+                                            onclick="setCronSchedule('0 2 * * *')">
+                                        Daily at 2 AM (default)
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" 
+                                            onclick="setCronSchedule('0 2 * * 0')">
+                                        Weekly on Sunday at 2 AM
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kafka Configuration -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <h5><i class="fas fa-stream"></i> Kafka Configuration</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="kafkaTopic" class="form-label">Kafka Topic Name</label>
+                                <input type="text" class="form-control" id="kafkaTopic" name="kafkaTopic" 
+                                       th:value="${kafkaTopic}" placeholder="topic-scanner">
+                                <div class="form-text">
+                                    Name of the Kafka topic for topic messages
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Kafka Status</label>
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> 
+                                    Kafka configuration is managed via Kubernetes ConfigMaps.
+                                    Changes require updating the deployment.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Classification Configuration -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-info text-white">
+                            <h5><i class="fas fa-brain"></i> Classification Configuration</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Classification Method</label>
+                                        <select class="form-select" disabled>
+                                            <option selected>Keyword-based (Default)</option>
+                                            <option>AI-powered (Coming Soon)</option>
+                                        </select>
+                                        <div class="form-text">
+                                            Method used for topic classification
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Confidence Threshold</label>
+                                        <input type="range" class="form-range" min="0" max="1" step="0.1" value="0.1">
+                                        <div class="form-text">
+                                            Minimum confidence score for theme classification
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Max Themes Per Topic</label>
+                                        <input type="number" class="form-control" value="3" min="1" max="10">
+                                        <div class="form-text">
+                                            Maximum number of themes per topic
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Status -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-warning text-dark">
+                            <h5><i class="fas fa-server"></i> System Status</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <h6>Database</h6>
+                                        <span class="badge bg-success">Connected</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <h6>Kafka</h6>
+                                        <span class="badge bg-success">Connected</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <h6>Topic Analyzer</h6>
+                                        <span class="badge bg-success">Running</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <h6>Scanner CronJob</h6>
+                                        <span class="badge bg-success">Scheduled</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Save Button -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-save"></i> Save Configuration
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <footer class="bg-light mt-5 py-4">
+        <div class="container text-center">
+            <p class="text-muted mb-0">
+                <i class="fas fa-shield-alt"></i> 
+                Admin Panel - Cloud Native Topic Scanner
+            </p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function setCronSchedule(schedule) {
+            document.getElementById('cronSchedule').value = schedule;
+        }
+    </script>
+</body>
+</html>
+
+

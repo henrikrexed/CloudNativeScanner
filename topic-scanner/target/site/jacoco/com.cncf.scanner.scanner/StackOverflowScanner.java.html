@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StackOverflowScanner.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Topic Scanner Service</a> &gt; <a href="index.source.html" class="el_package">com.cncf.scanner.scanner</a> &gt; <span class="el_source">StackOverflowScanner.java</span></div><h1>StackOverflowScanner.java</h1><pre class="source lang-java linenums">package com.cncf.scanner.scanner;
+
+import com.cncf.scanner.config.DebugConfig;
+import com.cncf.scanner.model.Source;
+import com.cncf.scanner.model.SearchTopic;
+import com.cncf.scanner.service.SearchTopicService;
+import com.cncf.scanner.util.ScanTracer;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Component
+public class StackOverflowScanner implements SourceScanner {
+    
+<span class="fc" id="L29">    private static final Logger logger = LoggerFactory.getLogger(StackOverflowScanner.class);</span>
+    private static final String SOURCE_TYPE = &quot;StackOverflow&quot;;
+    
+    private final WebClient webClient;
+    private final ObjectMapper objectMapper;
+    private final SearchTopicService searchTopicService;
+    private final DebugConfig debugConfig;
+    
+    @Autowired
+<span class="fc" id="L38">    public StackOverflowScanner(SearchTopicService searchTopicService, DebugConfig debugConfig) {</span>
+<span class="fc" id="L39">        this.webClient = WebClient.builder()</span>
+<span class="fc" id="L40">                .baseUrl(&quot;https://api.stackexchange.com/2.3&quot;)</span>
+<span class="fc" id="L41">                .build();</span>
+<span class="fc" id="L42">        this.objectMapper = new ObjectMapper();</span>
+<span class="fc" id="L43">        this.searchTopicService = searchTopicService;</span>
+<span class="fc" id="L44">        this.debugConfig = debugConfig;</span>
+<span class="fc" id="L45">    }</span>
+    
+    @Override
+    public String getSourceType() {
+<span class="fc" id="L49">        return SOURCE_TYPE;</span>
+    }
+    
+    @Override
+    public boolean canHandle(Source source) {
+<span class="fc" id="L54">        return SOURCE_TYPE.equalsIgnoreCase(source.getName());</span>
+    }
+    
+    @Override
+    public List&lt;ScanResult&gt; scan(Source source, LocalDateTime lastScanTime) {
+<span class="nc" id="L59">        ScanTracer.startTrace(&quot;STACKOVERFLOW_SCAN&quot;, source.getName(), </span>
+<span class="nc" id="L60">                &quot;Starting StackOverflow scan for source: &quot; + source.getName());</span>
+<span class="nc" id="L61">        Instant scanStart = Instant.now();</span>
+<span class="nc" id="L62">        List&lt;ScanResult&gt; results = new ArrayList&lt;&gt;();</span>
+        
+        try {
+            // Get configurable search topics for this source
+<span class="nc" id="L66">            ScanTracer.logStep(&quot;STACKOVERFLOW_SCAN&quot;, source.getName(), &quot;GETTING_SEARCH_TOPICS&quot;, </span>
+<span class="nc" id="L67">                    &quot;Fetching search topics for source ID: &quot; + source.getId());</span>
+            
+<span class="nc" id="L69">            List&lt;SearchTopic&gt; searchTopics = searchTopicService.findSearchTopicsNeedingSearch(source.getId());</span>
+            
+<span class="nc bnc" id="L71" title="All 2 branches missed.">            if (searchTopics.isEmpty()) {</span>
+<span class="nc" id="L72">                ScanTracer.logStep(&quot;STACKOVERFLOW_SCAN&quot;, source.getName(), &quot;NO_TOPICS&quot;, </span>
+                        &quot;No search topics configured for this source&quot;);
+<span class="nc" id="L74">                logger.info(&quot;📭 No search topics configured for source: {}&quot;, source.getName());</span>
+<span class="nc" id="L75">                return results;</span>
+            }
+            
+<span class="nc" id="L78">            ScanTracer.logStep(&quot;STACKOVERFLOW_SCAN&quot;, source.getName(), &quot;TOPICS_FOUND&quot;, </span>
+<span class="nc" id="L79">                    &quot;Found &quot; + searchTopics.size() + &quot; search topics to process&quot;);</span>
+<span class="nc" id="L80">            logger.info(&quot;🔍 Scanning {} search topics for StackOverflow source: {}&quot;, searchTopics.size(), source.getName());</span>
+            
+<span class="nc" id="L82">            Map&lt;String, Object&gt; scanMetrics = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L83">            scanMetrics.put(&quot;totalTopics&quot;, searchTopics.size());</span>
+<span class="nc" id="L84">            scanMetrics.put(&quot;successfulTopics&quot;, 0);</span>
+<span class="nc" id="L85">            scanMetrics.put(&quot;failedTopics&quot;, 0);</span>
+<span class="nc" id="L86">            scanMetrics.put(&quot;totalResults&quot;, 0);</span>
+            
+<span class="nc bnc" id="L88" title="All 2 branches missed.">            for (SearchTopic searchTopic : searchTopics) {</span>
+                try {
+<span class="nc" id="L90">                    ScanTracer.logStep(&quot;STACKOVERFLOW_SCAN&quot;, source.getName(), &quot;PROCESSING_TOPIC&quot;, </span>
+<span class="nc" id="L91">                            &quot;Processing topic: &quot; + searchTopic.getKeyword() + &quot; (ID: &quot; + searchTopic.getId() + &quot;)&quot;);</span>
+                    
+<span class="nc" id="L93">                    List&lt;ScanResult&gt; topicResults = searchStackOverflow(searchTopic, lastScanTime);</span>
+<span class="nc" id="L94">                    results.addAll(topicResults);</span>
+                    
+<span class="nc" id="L96">                    scanMetrics.put(&quot;successfulTopics&quot;, (Integer) scanMetrics.get(&quot;successfulTopics&quot;) + 1);</span>
+<span class="nc" id="L97">                    scanMetrics.put(&quot;totalResults&quot;, (Integer) scanMetrics.get(&quot;totalResults&quot;) + topicResults.size());</span>
+                    
+                    // Update last searched timestamp
+<span class="nc" id="L100">                    searchTopicService.updateLastSearchedAt(searchTopic.getId());</span>
+                    
+<span class="nc" id="L102">                    ScanTracer.logDataCollection(source.getName(), searchTopic.getKeyword(), </span>
+<span class="nc" id="L103">                            topicResults.size(), &quot;StackOverflow search completed&quot;);</span>
+                    
+<span class="nc" id="L105">                    logger.debug(&quot;✅ Found {} results for search topic: {}&quot;, topicResults.size(), searchTopic.getKeyword());</span>
+                    
+<span class="nc bnc" id="L107" title="All 4 branches missed.">                    if (debugConfig.isDetailedScanLogging() &amp;&amp; !topicResults.isEmpty()) {</span>
+<span class="nc" id="L108">                        logger.debug(&quot;📋 Topic '{}' results: {}&quot;, searchTopic.getKeyword(), </span>
+<span class="nc" id="L109">                                topicResults.stream().map(r -&gt; r.getTitle()).toArray());</span>
+                    }
+                    
+<span class="nc" id="L112">                } catch (Exception e) {</span>
+<span class="nc" id="L113">                    scanMetrics.put(&quot;failedTopics&quot;, (Integer) scanMetrics.get(&quot;failedTopics&quot;) + 1);</span>
+<span class="nc" id="L114">                    ScanTracer.logError(&quot;STACKOVERFLOW_SCAN&quot;, source.getName(), </span>
+<span class="nc" id="L115">                            &quot;Failed to search topic: &quot; + searchTopic.getKeyword(), e);</span>
+<span class="nc" id="L116">                    logger.error(&quot;❌ Error searching for topic {}: {}&quot;, searchTopic.getKeyword(), e.getMessage(), e);</span>
+<span class="nc" id="L117">                }</span>
+                
+                // Rate limiting
+<span class="nc" id="L120">                long delay = getRequestDelay();</span>
+<span class="nc" id="L121">                ScanTracer.logStep(&quot;STACKOVERFLOW_SCAN&quot;, source.getName(), &quot;RATE_LIMITING&quot;, </span>
+                        &quot;Sleeping for &quot; + delay + &quot;ms between requests&quot;);
+<span class="nc" id="L123">                Thread.sleep(delay);</span>
+<span class="nc" id="L124">            }</span>
+            
+<span class="nc" id="L126">            Duration scanDuration = Duration.between(scanStart, Instant.now());</span>
+<span class="nc" id="L127">            scanMetrics.put(&quot;scanDurationMs&quot;, scanDuration.toMillis());</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">            scanMetrics.put(&quot;avgResultsPerTopic&quot;, searchTopics.size() &gt; 0 ? </span>
+<span class="nc" id="L129">                    (Integer) scanMetrics.get(&quot;totalResults&quot;) / searchTopics.size() : 0);</span>
+            
+<span class="nc" id="L131">            ScanTracer.logMetrics(&quot;STACKOVERFLOW_SCAN&quot;, source.getName(), scanMetrics);</span>
+            
+<span class="nc" id="L133">            logger.info(&quot;🎯 StackOverflow scan completed for {}: {} topics processed, {} results found in {}ms&quot;, </span>
+<span class="nc" id="L134">                    source.getName(), searchTopics.size(), results.size(), scanDuration.toMillis());</span>
+            
+<span class="nc" id="L136">        } catch (Exception e) {</span>
+<span class="nc" id="L137">            Duration scanDuration = Duration.between(scanStart, Instant.now());</span>
+<span class="nc" id="L138">            ScanTracer.logError(&quot;STACKOVERFLOW_SCAN&quot;, source.getName(), </span>
+<span class="nc" id="L139">                    &quot;StackOverflow scan failed after &quot; + scanDuration.toMillis() + &quot;ms&quot;, e);</span>
+<span class="nc" id="L140">            logger.error(&quot;💥 Error scanning StackOverflow after {}ms: {}&quot;, scanDuration.toMillis(), e.getMessage(), e);</span>
+        } finally {
+<span class="nc" id="L142">            ScanTracer.endTrace(&quot;STACKOVERFLOW_SCAN&quot;, source.getName(), </span>
+<span class="nc" id="L143">                    &quot;StackOverflow scan completed with &quot; + results.size() + &quot; results&quot;);</span>
+        }
+        
+<span class="nc" id="L146">        return results;</span>
+    }
+    
+    private List&lt;ScanResult&gt; searchStackOverflow(SearchTopic searchTopic, LocalDateTime lastScanTime) {
+<span class="nc" id="L150">        List&lt;ScanResult&gt; results = new ArrayList&lt;&gt;();</span>
+        
+        try {
+            // Build search URL with configurable parameters
+<span class="nc bnc" id="L154" title="All 2 branches missed.">            String searchQuery = searchTopic.getSearchQuery() != null ? </span>
+<span class="nc" id="L155">                    searchTopic.getSearchQuery() : searchTopic.getKeyword();</span>
+            
+<span class="nc" id="L157">            String url = String.format(&quot;/search/advanced?order=desc&amp;sort=activity&amp;q=%s&amp;site=stackoverflow&amp;pagesize=%d&quot;, </span>
+<span class="nc" id="L158">                    searchQuery, searchTopic.getMaxResults());</span>
+            
+<span class="nc" id="L160">            String response = webClient.get()</span>
+<span class="nc" id="L161">                    .uri(url)</span>
+<span class="nc" id="L162">                    .retrieve()</span>
+<span class="nc" id="L163">                    .bodyToMono(String.class)</span>
+<span class="nc" id="L164">                    .block();</span>
+            
+<span class="nc bnc" id="L166" title="All 2 branches missed.">            if (response != null) {</span>
+<span class="nc" id="L167">                JsonNode root = objectMapper.readTree(response);</span>
+<span class="nc" id="L168">                JsonNode items = root.get(&quot;items&quot;);</span>
+                
+<span class="nc bnc" id="L170" title="All 4 branches missed.">                if (items != null &amp;&amp; items.isArray()) {</span>
+<span class="nc bnc" id="L171" title="All 2 branches missed.">                    for (JsonNode item : items) {</span>
+<span class="nc" id="L172">                        ScanResult result = parseStackOverflowItem(item, searchTopic);</span>
+<span class="nc bnc" id="L173" title="All 4 branches missed.">                        if (result != null &amp;&amp; isNewOrUpdated(result, lastScanTime)) {</span>
+<span class="nc" id="L174">                            results.add(result);</span>
+                        }
+<span class="nc" id="L176">                    }</span>
+                }
+            }
+            
+<span class="nc" id="L180">        } catch (Exception e) {</span>
+<span class="nc" id="L181">            logger.error(&quot;Error searching StackOverflow for topic {}: {}&quot;, searchTopic.getKeyword(), e.getMessage(), e);</span>
+<span class="nc" id="L182">        }</span>
+        
+<span class="nc" id="L184">        return results;</span>
+    }
+    
+    private ScanResult parseStackOverflowItem(JsonNode item, SearchTopic searchTopic) {
+        try {
+<span class="nc" id="L189">            ScanResult result = new ScanResult();</span>
+            
+<span class="nc" id="L191">            result.setExternalId(item.get(&quot;question_id&quot;).asText());</span>
+<span class="nc" id="L192">            result.setTitle(item.get(&quot;title&quot;).asText());</span>
+<span class="nc" id="L193">            result.setUrl(item.get(&quot;link&quot;).asText());</span>
+            
+            // Get owner information
+<span class="nc" id="L196">            JsonNode owner = item.get(&quot;owner&quot;);</span>
+<span class="nc bnc" id="L197" title="All 4 branches missed.">            if (owner != null &amp;&amp; !owner.isNull()) {</span>
+<span class="nc" id="L198">                result.setAuthor(owner.get(&quot;display_name&quot;).asText());</span>
+            }
+            
+<span class="nc" id="L201">            result.setScore(item.get(&quot;score&quot;).asInt());</span>
+<span class="nc" id="L202">            result.setViewCount(item.get(&quot;view_count&quot;).asInt());</span>
+<span class="nc" id="L203">            result.setInteractionCount(item.get(&quot;answer_count&quot;).asInt());</span>
+            
+            // Parse creation date
+<span class="nc" id="L206">            long creationDate = item.get(&quot;creation_date&quot;).asLong();</span>
+<span class="nc" id="L207">            result.setPublishedAt(LocalDateTime.ofEpochSecond(creationDate, 0, </span>
+                    java.time.ZoneOffset.UTC));
+            
+            // Get question body (content)
+<span class="nc" id="L211">            String body = item.get(&quot;body&quot;).asText();</span>
+<span class="nc" id="L212">            Document doc = Jsoup.parse(body);</span>
+<span class="nc" id="L213">            result.setContent(doc.text());</span>
+            
+            // Add metadata including search topic information
+<span class="nc" id="L216">            Map&lt;String, Object&gt; metadata = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L217">            metadata.put(&quot;tags&quot;, item.get(&quot;tags&quot;));</span>
+<span class="nc" id="L218">            metadata.put(&quot;is_answered&quot;, item.get(&quot;is_answered&quot;).asBoolean());</span>
+<span class="nc" id="L219">            metadata.put(&quot;accepted_answer_id&quot;, item.get(&quot;accepted_answer_id&quot;));</span>
+<span class="nc" id="L220">            metadata.put(&quot;search_topic_id&quot;, searchTopic.getId());</span>
+<span class="nc" id="L221">            metadata.put(&quot;search_topic_keyword&quot;, searchTopic.getKeyword());</span>
+<span class="nc" id="L222">            metadata.put(&quot;search_topic_priority&quot;, searchTopic.getPriority());</span>
+<span class="nc" id="L223">            result.setMetadata(metadata);</span>
+            
+<span class="nc" id="L225">            return result;</span>
+            
+<span class="nc" id="L227">        } catch (Exception e) {</span>
+<span class="nc" id="L228">            logger.error(&quot;Error parsing StackOverflow item: {}&quot;, e.getMessage(), e);</span>
+<span class="nc" id="L229">            return null;</span>
+        }
+    }
+    
+    private boolean isNewOrUpdated(ScanResult result, LocalDateTime lastScanTime) {
+<span class="nc bnc" id="L234" title="All 2 branches missed.">        if (lastScanTime == null) {</span>
+<span class="nc" id="L235">            return true;</span>
+        }
+<span class="nc" id="L237">        return result.getPublishedAt().isAfter(lastScanTime);</span>
+    }
+    
+    @Override
+    public int getRateLimit() {
+<span class="nc" id="L242">        return 30; // StackOverflow allows 30 requests per second</span>
+    }
+    
+    @Override
+    public long getRequestDelay() {
+<span class="nc" id="L247">        return 2000; // 2 seconds between requests to be safe</span>
+    }
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

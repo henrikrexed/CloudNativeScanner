@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ScanningService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Topic Scanner Service</a> &gt; <a href="index.source.html" class="el_package">com.cncf.scanner.service</a> &gt; <span class="el_source">ScanningService.java</span></div><h1>ScanningService.java</h1><pre class="source lang-java linenums">package com.cncf.scanner.service;
+
+import com.cncf.scanner.config.DebugConfig;
+import com.cncf.scanner.kafka.TopicProducer;
+import com.cncf.scanner.model.*;
+import com.cncf.scanner.scanner.ScanResult;
+import com.cncf.scanner.scanner.ScannerManager;
+import com.cncf.scanner.util.ScanTracer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Service
+@Transactional
+public class ScanningService {
+    
+<span class="nc" id="L28">    private static final Logger logger = LoggerFactory.getLogger(ScanningService.class);</span>
+    
+    private final SourceService sourceService;
+    private final ScannerManager scannerManager;
+    private final TopicProducer topicProducer;
+    private final ScanHistoryService scanHistoryService;
+    private final DebugConfig debugConfig;
+    
+    @Autowired
+    public ScanningService(SourceService sourceService, 
+                          ScannerManager scannerManager,
+                          TopicProducer topicProducer,
+                          ScanHistoryService scanHistoryService,
+<span class="nc" id="L41">                          DebugConfig debugConfig) {</span>
+<span class="nc" id="L42">        this.sourceService = sourceService;</span>
+<span class="nc" id="L43">        this.scannerManager = scannerManager;</span>
+<span class="nc" id="L44">        this.topicProducer = topicProducer;</span>
+<span class="nc" id="L45">        this.scanHistoryService = scanHistoryService;</span>
+<span class="nc" id="L46">        this.debugConfig = debugConfig;</span>
+<span class="nc" id="L47">    }</span>
+    
+    /**
+     * Scheduled method to run daily scanning
+     */
+    @Scheduled(cron = &quot;0 0 2 * * ?&quot;) // Run at 2 AM daily
+    public void performDailyScan() {
+<span class="nc" id="L54">        ScanTracer.startTrace(&quot;DAILY_SCAN&quot;, &quot;ALL_SOURCES&quot;, &quot;Starting scheduled daily scan&quot;);</span>
+<span class="nc" id="L55">        Instant scanStart = Instant.now();</span>
+        
+<span class="nc" id="L57">        logger.info(&quot;🚀 Starting daily scan of all active sources&quot;);</span>
+        
+        try {
+<span class="nc" id="L60">            List&lt;Source&gt; activeSources = sourceService.findActiveSources();</span>
+<span class="nc" id="L61">            logger.info(&quot;📋 Found {} active sources to scan&quot;, activeSources.size());</span>
+            
+<span class="nc" id="L63">            Map&lt;String, Object&gt; scanMetrics = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L64">            scanMetrics.put(&quot;totalSources&quot;, activeSources.size());</span>
+<span class="nc" id="L65">            scanMetrics.put(&quot;successfulScans&quot;, 0);</span>
+<span class="nc" id="L66">            scanMetrics.put(&quot;failedScans&quot;, 0);</span>
+<span class="nc" id="L67">            scanMetrics.put(&quot;totalTopicsFound&quot;, 0);</span>
+            
+<span class="nc bnc" id="L69" title="All 2 branches missed.">            for (Source source : activeSources) {</span>
+                try {
+<span class="nc" id="L71">                    ScanTracer.logStep(&quot;DAILY_SCAN&quot;, &quot;ALL_SOURCES&quot;, &quot;SCANNING_SOURCE&quot;, </span>
+<span class="nc" id="L72">                            &quot;Starting scan for source: &quot; + source.getName());</span>
+                    
+<span class="nc" id="L74">                    scanSource(source);</span>
+<span class="nc" id="L75">                    scanMetrics.put(&quot;successfulScans&quot;, (Integer) scanMetrics.get(&quot;successfulScans&quot;) + 1);</span>
+                    
+<span class="nc" id="L77">                } catch (Exception e) {</span>
+<span class="nc" id="L78">                    scanMetrics.put(&quot;failedScans&quot;, (Integer) scanMetrics.get(&quot;failedScans&quot;) + 1);</span>
+<span class="nc" id="L79">                    ScanTracer.logError(&quot;DAILY_SCAN&quot;, &quot;ALL_SOURCES&quot;, </span>
+<span class="nc" id="L80">                            &quot;Failed to scan source: &quot; + source.getName(), e);</span>
+<span class="nc" id="L81">                    logger.error(&quot;❌ Error scanning source {}: {}&quot;, source.getName(), e.getMessage(), e);</span>
+<span class="nc" id="L82">                }</span>
+<span class="nc" id="L83">            }</span>
+            
+<span class="nc" id="L85">            Duration totalDuration = Duration.between(scanStart, Instant.now());</span>
+<span class="nc" id="L86">            scanMetrics.put(&quot;totalDurationMs&quot;, totalDuration.toMillis());</span>
+            
+<span class="nc" id="L88">            ScanTracer.logMetrics(&quot;DAILY_SCAN&quot;, &quot;ALL_SOURCES&quot;, scanMetrics);</span>
+<span class="nc" id="L89">            logger.info(&quot;✅ Completed daily scan of all active sources in {}ms - Success: {}, Failed: {}&quot;, </span>
+<span class="nc" id="L90">                    totalDuration.toMillis(), scanMetrics.get(&quot;successfulScans&quot;), scanMetrics.get(&quot;failedScans&quot;));</span>
+            
+<span class="nc" id="L92">        } catch (Exception e) {</span>
+<span class="nc" id="L93">            ScanTracer.logError(&quot;DAILY_SCAN&quot;, &quot;ALL_SOURCES&quot;, &quot;Daily scan failed&quot;, e);</span>
+<span class="nc" id="L94">            logger.error(&quot;💥 Daily scan failed: {}&quot;, e.getMessage(), e);</span>
+        } finally {
+<span class="nc" id="L96">            ScanTracer.endTrace(&quot;DAILY_SCAN&quot;, &quot;ALL_SOURCES&quot;, &quot;Daily scan completed&quot;);</span>
+        }
+<span class="nc" id="L98">    }</span>
+    
+    /**
+     * Scan a specific source
+     */
+    public void scanSource(Source source) {
+<span class="nc" id="L104">        ScanTracer.startTrace(&quot;SOURCE_SCAN&quot;, source.getName(), </span>
+<span class="nc" id="L105">                &quot;Starting scan for source: &quot; + source.getName() + &quot; (ID: &quot; + source.getId() + &quot;)&quot;);</span>
+<span class="nc" id="L106">        Instant scanStart = Instant.now();</span>
+        
+<span class="nc" id="L108">        logger.info(&quot;🔍 Starting scan for source: {} (ID: {})&quot;, source.getName(), source.getId());</span>
+        
+        // Create scan history record
+<span class="nc" id="L111">        ScanHistory scanHistory = scanHistoryService.startScan(source);</span>
+<span class="nc" id="L112">        ScanTracer.logStep(&quot;SOURCE_SCAN&quot;, source.getName(), &quot;SCAN_HISTORY_CREATED&quot;, </span>
+<span class="nc" id="L113">                &quot;Created scan history record with ID: &quot; + scanHistory.getId());</span>
+        
+        try {
+            // Get the appropriate scanner
+<span class="nc" id="L117">            ScanTracer.logStep(&quot;SOURCE_SCAN&quot;, source.getName(), &quot;GETTING_SCANNER&quot;, </span>
+<span class="nc" id="L118">                    &quot;Looking for scanner for source type: &quot; + source.getName());</span>
+            
+<span class="nc" id="L120">            com.cncf.scanner.scanner.SourceScanner scanner = scannerManager.getScanner(source);</span>
+<span class="nc bnc" id="L121" title="All 2 branches missed.">            if (scanner == null) {</span>
+<span class="nc" id="L122">                String error = &quot;No scanner available for source: &quot; + source.getName();</span>
+<span class="nc" id="L123">                ScanTracer.logError(&quot;SOURCE_SCAN&quot;, source.getName(), error, </span>
+                        new IllegalStateException(error));
+<span class="nc" id="L125">                throw new IllegalStateException(error);</span>
+            }
+            
+<span class="nc" id="L128">            ScanTracer.logStep(&quot;SOURCE_SCAN&quot;, source.getName(), &quot;SCANNER_FOUND&quot;, </span>
+<span class="nc" id="L129">                    &quot;Found scanner: &quot; + scanner.getClass().getSimpleName());</span>
+            
+            // Get last scan time
+<span class="nc" id="L132">            LocalDateTime lastScanTime = scanHistoryService.getLastScanTime(source);</span>
+<span class="nc" id="L133">            ScanTracer.logStep(&quot;SOURCE_SCAN&quot;, source.getName(), &quot;LAST_SCAN_TIME&quot;, </span>
+<span class="nc bnc" id="L134" title="All 2 branches missed.">                    &quot;Last scan time: &quot; + (lastScanTime != null ? lastScanTime.toString() : &quot;Never&quot;));</span>
+            
+            // Perform the scan
+<span class="nc" id="L137">            ScanTracer.logStep(&quot;SOURCE_SCAN&quot;, source.getName(), &quot;STARTING_SCAN&quot;, </span>
+                    &quot;Calling scanner.scan() method&quot;);
+            
+<span class="nc" id="L140">            List&lt;ScanResult&gt; scanResults = scanner.scan(source, lastScanTime);</span>
+            
+<span class="nc" id="L142">            ScanTracer.logDataCollection(source.getName(), &quot;ALL_TOPICS&quot;, scanResults.size(), </span>
+<span class="nc" id="L143">                    &quot;Scanner returned &quot; + scanResults.size() + &quot; results&quot;);</span>
+            
+            // Update scan history with results
+<span class="nc" id="L146">            scanHistory.setTopicsFound(scanResults.size());</span>
+<span class="nc" id="L147">            ScanTracer.logStep(&quot;SOURCE_SCAN&quot;, source.getName(), &quot;UPDATING_HISTORY&quot;, </span>
+<span class="nc" id="L148">                    &quot;Updated scan history with &quot; + scanResults.size() + &quot; topics found&quot;);</span>
+            
+            // Send results to Kafka
+<span class="nc bnc" id="L151" title="All 2 branches missed.">            if (!scanResults.isEmpty()) {</span>
+<span class="nc" id="L152">                ScanTracer.logStep(&quot;SOURCE_SCAN&quot;, source.getName(), &quot;SENDING_TO_KAFKA&quot;, </span>
+<span class="nc" id="L153">                        &quot;Sending &quot; + scanResults.size() + &quot; topics to Kafka&quot;);</span>
+                
+<span class="nc" id="L155">                topicProducer.sendTopics(source, scanResults);</span>
+<span class="nc" id="L156">                scanHistory.setTopicsProcessed(scanResults.size());</span>
+                
+<span class="nc" id="L158">                ScanTracer.logStep(&quot;SOURCE_SCAN&quot;, source.getName(), &quot;KAFKA_SENT&quot;, </span>
+                        &quot;Successfully sent topics to Kafka&quot;);
+            } else {
+<span class="nc" id="L161">                ScanTracer.logStep(&quot;SOURCE_SCAN&quot;, source.getName(), &quot;NO_TOPICS&quot;, </span>
+                        &quot;No topics found, skipping Kafka send&quot;);
+            }
+            
+            // Complete the scan
+<span class="nc" id="L166">            scanHistoryService.completeScan(scanHistory);</span>
+            
+<span class="nc" id="L168">            Duration scanDuration = Duration.between(scanStart, Instant.now());</span>
+<span class="nc" id="L169">            Map&lt;String, Object&gt; metrics = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L170">            metrics.put(&quot;topicsFound&quot;, scanResults.size());</span>
+<span class="nc" id="L171">            metrics.put(&quot;topicsProcessed&quot;, scanResults.size());</span>
+<span class="nc" id="L172">            metrics.put(&quot;scanDurationMs&quot;, scanDuration.toMillis());</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">            metrics.put(&quot;lastScanTime&quot;, lastScanTime != null ? lastScanTime.toString() : &quot;Never&quot;);</span>
+            
+<span class="nc" id="L175">            ScanTracer.logMetrics(&quot;SOURCE_SCAN&quot;, source.getName(), metrics);</span>
+            
+<span class="nc" id="L177">            logger.info(&quot;✅ Successfully scanned source {}: found {} topics in {}ms&quot;, </span>
+<span class="nc" id="L178">                    source.getName(), scanResults.size(), scanDuration.toMillis());</span>
+            
+<span class="nc bnc" id="L180" title="All 2 branches missed.">            if (debugConfig.isDetailedScanLogging()) {</span>
+<span class="nc" id="L181">                logger.debug(&quot;📊 Detailed scan results for {}: {}&quot;, source.getName(), </span>
+<span class="nc" id="L182">                        scanResults.stream().map(r -&gt; r.getTitle()).toArray());</span>
+            }
+            
+<span class="nc" id="L185">        } catch (Exception e) {</span>
+<span class="nc" id="L186">            Duration scanDuration = Duration.between(scanStart, Instant.now());</span>
+<span class="nc" id="L187">            ScanTracer.logError(&quot;SOURCE_SCAN&quot;, source.getName(), </span>
+<span class="nc" id="L188">                    &quot;Scan failed after &quot; + scanDuration.toMillis() + &quot;ms&quot;, e);</span>
+            
+<span class="nc" id="L190">            logger.error(&quot;❌ Error scanning source {} after {}ms: {}&quot;, </span>
+<span class="nc" id="L191">                    source.getName(), scanDuration.toMillis(), e.getMessage(), e);</span>
+            
+<span class="nc" id="L193">            scanHistoryService.failScan(scanHistory, e.getMessage());</span>
+<span class="nc" id="L194">            throw e;</span>
+        } finally {
+<span class="nc" id="L196">            ScanTracer.endTrace(&quot;SOURCE_SCAN&quot;, source.getName(), </span>
+<span class="nc" id="L197">                    &quot;Scan completed for source: &quot; + source.getName());</span>
+        }
+<span class="nc" id="L199">    }</span>
+    
+    /**
+     * Scan a specific source manually
+     */
+    public void scanSourceManually(Long sourceId) {
+<span class="nc" id="L205">        Source source = sourceService.findById(sourceId)</span>
+<span class="nc" id="L206">                .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Source not found with id: &quot; + sourceId));</span>
+        
+<span class="nc" id="L208">        scanSource(source);</span>
+<span class="nc" id="L209">    }</span>
+    
+    /**
+     * Scan all sources that need scanning
+     */
+    public void scanSourcesNeedingUpdate() {
+<span class="nc" id="L215">        List&lt;Source&gt; sourcesNeedingScan = sourceService.findSourcesNeedingScan();</span>
+        
+<span class="nc" id="L217">        logger.info(&quot;Found {} sources that need scanning&quot;, sourcesNeedingScan.size());</span>
+        
+<span class="nc bnc" id="L219" title="All 2 branches missed.">        for (Source source : sourcesNeedingScan) {</span>
+            try {
+<span class="nc" id="L221">                scanSource(source);</span>
+<span class="nc" id="L222">            } catch (Exception e) {</span>
+<span class="nc" id="L223">                logger.error(&quot;Error scanning source {}: {}&quot;, source.getName(), e.getMessage(), e);</span>
+<span class="nc" id="L224">            }</span>
+<span class="nc" id="L225">        }</span>
+<span class="nc" id="L226">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

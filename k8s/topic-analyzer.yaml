@@ -1,0 +1,141 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: topic-analyzer-config
+  namespace: topic-scanner
+data:
+  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/topic_scanner
+  SPRING_DATASOURCE_USERNAME: topic_scanner
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  SPRING_KAFKA_CONSUMER_GROUP_ID: topic-processor
+  SPRING_KAFKA_CONSUMER_KEY_DESERIALIZER: org.apache.kafka.common.serialization.StringDeserializer
+  SPRING_KAFKA_CONSUMER_VALUE_DESERIALIZER: org.apache.kafka.common.serialization.StringDeserializer
+  KAFKA_TOPIC_NAME: topic-scanner
+  AI_ENABLED: "true"
+  AI_SIMILARITY_THRESHOLD: "0.8"
+  AI_DUPLICATE_DETECTION_ENABLED: "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: topic-analyzer-secret
+  namespace: topic-scanner
+type: Opaque
+data:
+  SPRING_DATASOURCE_PASSWORD: dG9waWNfc2Nhbm5lcl9wYXNzd29yZA== # topic_scanner_password
+  OPENAI_API_KEY: eW91ci1vcGVuYWktYXBpLWtleQ== # your-openai-api-key (base64 encoded)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: topic-analyzer
+  namespace: topic-scanner
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: topic-analyzer
+  template:
+    metadata:
+      labels:
+        app: topic-analyzer
+    spec:
+      containers:
+      - name: topic-analyzer
+        image: topic-analyzer:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SPRING_DATASOURCE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: topic-analyzer-config
+              key: SPRING_DATASOURCE_URL
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            configMapKeyRef:
+              name: topic-analyzer-config
+              key: SPRING_DATASOURCE_USERNAME
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: topic-analyzer-secret
+              key: SPRING_DATASOURCE_PASSWORD
+        - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            configMapKeyRef:
+              name: topic-analyzer-config
+              key: SPRING_KAFKA_BOOTSTRAP_SERVERS
+        - name: SPRING_KAFKA_CONSUMER_GROUP_ID
+          valueFrom:
+            configMapKeyRef:
+              name: topic-analyzer-config
+              key: SPRING_KAFKA_CONSUMER_GROUP_ID
+        - name: SPRING_KAFKA_CONSUMER_KEY_DESERIALIZER
+          valueFrom:
+            configMapKeyRef:
+              name: topic-analyzer-config
+              key: SPRING_KAFKA_CONSUMER_KEY_DESERIALIZER
+        - name: SPRING_KAFKA_CONSUMER_VALUE_DESERIALIZER
+          valueFrom:
+            configMapKeyRef:
+              name: topic-analyzer-config
+              key: SPRING_KAFKA_CONSUMER_VALUE_DESERIALIZER
+        - name: KAFKA_TOPIC_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: topic-analyzer-config
+              key: KAFKA_TOPIC_NAME
+        - name: AI_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: topic-analyzer-config
+              key: AI_ENABLED
+        - name: AI_SIMILARITY_THRESHOLD
+          valueFrom:
+            configMapKeyRef:
+              name: topic-analyzer-config
+              key: AI_SIMILARITY_THRESHOLD
+        - name: AI_DUPLICATE_DETECTION_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: topic-analyzer-config
+              key: AI_DUPLICATE_DETECTION_ENABLED
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: topic-analyzer-secret
+              key: OPENAI_API_KEY
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: topic-analyzer
+  namespace: topic-scanner
+spec:
+  selector:
+    app: topic-analyzer
+  ports:
+  - port: 8080
+    targetPort: 8080
+  type: ClusterIP

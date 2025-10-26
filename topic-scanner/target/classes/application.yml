@@ -1,0 +1,86 @@
+spring:
+  application:
+    name: topic-scanner
+  
+  # Database configuration
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/cloud_native_scanner}
+    username: ${DATABASE_USERNAME:scanner}
+    password: ${DATABASE_PASSWORD:scanner}
+    driver-class-name: org.postgresql.Driver
+  
+  # JPA configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  
+  # Kafka configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      batch-size: 16384
+      linger-ms: 5
+      buffer-memory: 33554432
+
+# Logging configuration
+logging:
+  level:
+    root: INFO
+    com.cncf.scanner: ${LOG_LEVEL:DEBUG}
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%logger{36}] - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%logger{36}] - %msg%n"
+  file:
+    name: ${LOG_FILE:logs/topic-scanner.log}
+    max-size: 10MB
+    max-history: 30
+
+# Application specific configuration
+app:
+  debug:
+    enabled: ${DEBUG_MODE:true}
+    trace-requests: ${TRACE_REQUESTS:true}
+    trace-performance: ${TRACE_PERFORMANCE:true}
+    detailed-scan-logging: ${DETAILED_SCAN_LOGGING:true}
+  
+  scanning:
+    rate-limit-delay-ms: ${RATE_LIMIT_DELAY_MS:1000}
+    max-retries: ${MAX_RETRIES:3}
+    timeout-seconds: ${TIMEOUT_SECONDS:30}
+  
+  sources:
+    reddit:
+      user-agent: "CloudNativeScanner/1.0"
+      request-delay-ms: 1000
+      max-posts-per-subreddit: 100
+    stackoverflow:
+      api-key: ${STACKOVERFLOW_API_KEY:}
+      request-delay-ms: 1000
+      max-questions-per-tag: 100
+
+# Management endpoints for monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+

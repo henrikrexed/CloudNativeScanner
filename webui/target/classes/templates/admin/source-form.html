@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${source.id == null ? 'Add New Source' : 'Edit Source'}">Source Form</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-search"></i> Cloud Native Topic Scanner
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">Public View</a>
+                <a class="nav-link" href="/admin">Admin Dashboard</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/admin">Admin Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="/admin/sources">Source Management</a></li>
+                <li class="breadcrumb-item active" th:text="${source.id == null ? 'Add New' : 'Edit'}">Form</li>
+            </ol>
+        </nav>
+
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 th:text="${source.id == null ? 'Add New Source' : 'Edit Source'}">
+                            <i class="fas fa-rss"></i> Source Form
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <form th:action="@{/admin/sources}" th:object="${source}" method="post">
+                            <input type="hidden" th:field="*{id}" />
+                            
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Source Name *</label>
+                                <input type="text" class="form-control" id="name" th:field="*{name}" 
+                                       placeholder="e.g., StackOverflow, Reddit, GitHub" required>
+                                <div class="form-text">Unique identifier for the source</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="baseUrl" class="form-label">Base URL *</label>
+                                <input type="url" class="form-control" id="baseUrl" th:field="*{baseUrl}" 
+                                       placeholder="https://stackoverflow.com" required>
+                                <div class="form-text">The main website URL for this source</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="apiEndpoint" class="form-label">API Endpoint</label>
+                                <input type="url" class="form-control" id="apiEndpoint" th:field="*{apiEndpoint}" 
+                                       placeholder="https://api.stackexchange.com/2.3">
+                                <div class="form-text">API endpoint for fetching data (optional)</div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="scanFrequencyHours" class="form-label">Scan Frequency (hours)</label>
+                                        <select class="form-select" id="scanFrequencyHours" th:field="*{scanFrequencyHours}">
+                                            <option value="1">Every hour</option>
+                                            <option value="6">Every 6 hours</option>
+                                            <option value="12">Every 12 hours</option>
+                                            <option value="24" selected>Daily</option>
+                                            <option value="48">Every 2 days</option>
+                                            <option value="168">Weekly</option>
+                                        </select>
+                                        <div class="form-text">How often to scan this source</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Status</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="isActive" 
+                                                   th:field="*{isActive}" th:checked="*{isActive}">
+                                            <label class="form-check-label" for="isActive">
+                                                Active (enabled for scanning)
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <a href="/admin/sources" class="btn btn-secondary me-md-2">
+                                    <i class="fas fa-times"></i> Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> 
+                                    <span th:text="${source.id == null ? 'Create Source' : 'Update Source'}">Save</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Help Section -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-question-circle"></i> Source Configuration Help</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6>Popular Source Examples:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card border-primary mb-3">
+                                    <div class="card-body">
+                                        <h6 class="card-title">
+                                            <i class="fab fa-stack-overflow text-primary"></i> StackOverflow
+                                        </h6>
+                                        <p class="card-text small">
+                                            <strong>Name:</strong> StackOverflow<br>
+                                            <strong>Base URL:</strong> https://stackoverflow.com<br>
+                                            <strong>API Endpoint:</strong> https://api.stackexchange.com/2.3
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card border-danger mb-3">
+                                    <div class="card-body">
+                                        <h6 class="card-title">
+                                            <i class="fab fa-reddit text-danger"></i> Reddit
+                                        </h6>
+                                        <p class="card-text small">
+                                            <strong>Name:</strong> Reddit<br>
+                                            <strong>Base URL:</strong> https://reddit.com<br>
+                                            <strong>API Endpoint:</strong> https://www.reddit.com/r
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <h6>Scan Frequency Guidelines:</h6>
+                        <ul class="small">
+                            <li><strong>Every hour:</strong> For very active sources with high volume</li>
+                            <li><strong>Daily:</strong> Recommended for most sources (default)</li>
+                            <li><strong>Weekly:</strong> For less active or specialized sources</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-light mt-5 py-4">
+        <div class="container text-center">
+            <p class="text-muted mb-0">
+                <i class="fas fa-shield-alt"></i> 
+                Admin Panel - Cloud Native Topic Scanner
+            </p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+
+

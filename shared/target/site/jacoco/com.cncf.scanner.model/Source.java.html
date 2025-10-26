@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Source.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Shared Module</a> &gt; <a href="index.source.html" class="el_package">com.cncf.scanner.model</a> &gt; <span class="el_source">Source.java</span></div><h1>Source.java</h1><pre class="source lang-java linenums">package com.cncf.scanner.model;
+
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
+import java.util.Set;
+
+@Entity
+@Table(name = &quot;sources&quot;)
+public class Source {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(nullable = false, unique = true, length = 100)
+    private String name;
+    
+    @Column(name = &quot;base_url&quot;, nullable = false, length = 500)
+    private String baseUrl;
+    
+    @Column(name = &quot;api_endpoint&quot;, length = 500)
+    private String apiEndpoint;
+    
+<span class="pc" id="L24">    @Column(name = &quot;is_active&quot;)</span>
+<span class="pc" id="L25">    private Boolean isActive = true;</span>
+    
+<span class="pc" id="L27">    @Column(name = &quot;scan_frequency_hours&quot;)</span>
+<span class="pc" id="L28">    private Integer scanFrequencyHours = 24;</span>
+    
+    @Column(name = &quot;created_at&quot;)
+    private LocalDateTime createdAt;
+    
+    @Column(name = &quot;updated_at&quot;)
+    private LocalDateTime updatedAt;
+    
+    @OneToMany(mappedBy = &quot;source&quot;, cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Set&lt;Topic&gt; topics;
+    
+    @OneToMany(mappedBy = &quot;source&quot;, cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Set&lt;ScanHistory&gt; scanHistories;
+    
+    @PrePersist
+    protected void onCreate() {
+<span class="nc" id="L44">        createdAt = LocalDateTime.now();</span>
+<span class="nc" id="L45">        updatedAt = LocalDateTime.now();</span>
+<span class="nc" id="L46">    }</span>
+    
+    @PreUpdate
+    protected void onUpdate() {
+<span class="nc" id="L50">        updatedAt = LocalDateTime.now();</span>
+<span class="nc" id="L51">    }</span>
+    
+    // Constructors
+<span class="fc" id="L54">    public Source() {}</span>
+    
+<span class="nc" id="L56">    public Source(String name, String baseUrl, String apiEndpoint) {</span>
+<span class="nc" id="L57">        this.name = name;</span>
+<span class="nc" id="L58">        this.baseUrl = baseUrl;</span>
+<span class="nc" id="L59">        this.apiEndpoint = apiEndpoint;</span>
+<span class="nc" id="L60">    }</span>
+    
+    // Getters and Setters
+    public Long getId() {
+<span class="nc" id="L64">        return id;</span>
+    }
+    
+    public void setId(Long id) {
+<span class="fc" id="L68">        this.id = id;</span>
+<span class="fc" id="L69">    }</span>
+    
+    public String getName() {
+<span class="nc" id="L72">        return name;</span>
+    }
+    
+    public void setName(String name) {
+<span class="fc" id="L76">        this.name = name;</span>
+<span class="fc" id="L77">    }</span>
+    
+    public String getBaseUrl() {
+<span class="nc" id="L80">        return baseUrl;</span>
+    }
+    
+    public void setBaseUrl(String baseUrl) {
+<span class="fc" id="L84">        this.baseUrl = baseUrl;</span>
+<span class="fc" id="L85">    }</span>
+    
+    public String getApiEndpoint() {
+<span class="nc" id="L88">        return apiEndpoint;</span>
+    }
+    
+    public void setApiEndpoint(String apiEndpoint) {
+<span class="nc" id="L92">        this.apiEndpoint = apiEndpoint;</span>
+<span class="nc" id="L93">    }</span>
+    
+    public Boolean getIsActive() {
+<span class="nc" id="L96">        return isActive;</span>
+    }
+    
+    public void setIsActive(Boolean isActive) {
+<span class="fc" id="L100">        this.isActive = isActive;</span>
+<span class="fc" id="L101">    }</span>
+    
+    public Integer getScanFrequencyHours() {
+<span class="nc" id="L104">        return scanFrequencyHours;</span>
+    }
+    
+    public void setScanFrequencyHours(Integer scanFrequencyHours) {
+<span class="nc" id="L108">        this.scanFrequencyHours = scanFrequencyHours;</span>
+<span class="nc" id="L109">    }</span>
+    
+    public LocalDateTime getCreatedAt() {
+<span class="nc" id="L112">        return createdAt;</span>
+    }
+    
+    public void setCreatedAt(LocalDateTime createdAt) {
+<span class="nc" id="L116">        this.createdAt = createdAt;</span>
+<span class="nc" id="L117">    }</span>
+    
+    public LocalDateTime getUpdatedAt() {
+<span class="nc" id="L120">        return updatedAt;</span>
+    }
+    
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+<span class="nc" id="L124">        this.updatedAt = updatedAt;</span>
+<span class="nc" id="L125">    }</span>
+    
+    public Set&lt;Topic&gt; getTopics() {
+<span class="nc" id="L128">        return topics;</span>
+    }
+    
+    public void setTopics(Set&lt;Topic&gt; topics) {
+<span class="nc" id="L132">        this.topics = topics;</span>
+<span class="nc" id="L133">    }</span>
+    
+    public Set&lt;ScanHistory&gt; getScanHistories() {
+<span class="nc" id="L136">        return scanHistories;</span>
+    }
+    
+    public void setScanHistories(Set&lt;ScanHistory&gt; scanHistories) {
+<span class="nc" id="L140">        this.scanHistories = scanHistories;</span>
+<span class="nc" id="L141">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>
