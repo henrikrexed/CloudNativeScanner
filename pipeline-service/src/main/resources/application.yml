@@ -33,6 +33,8 @@ topicscanner:
     min-content-length: ${PIPELINE_MIN_CONTENT_LENGTH:200}
     max-retries: ${PIPELINE_MAX_RETRIES:3}
     dedup-similarity-threshold: ${PIPELINE_DEDUP_THRESHOLD:0.95}
+    stale-job-minutes: ${PIPELINE_STALE_JOB_MINUTES:10}
+    max-results-per-scan: ${PIPELINE_MAX_RESULTS_PER_SCAN:25}
   llm:
     primary: ${LLM_PRIMARY:ollama}
     cloud-fallback: ${LLM_CLOUD_FALLBACK:openai}
