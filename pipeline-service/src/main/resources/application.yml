@@ -1,0 +1,78 @@
+spring:
+  application:
+    name: topicscanner-pipeline
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/topicscanner}
+    username: ${DATABASE_USERNAME:topicscanner}
+    password: ${DATABASE_PASSWORD:topicscanner}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+server:
+  port: ${SERVER_PORT:8080}
+
+# Pipeline configuration
+topicscanner:
+  scanner:
+    plugins-dir: ${SCANNER_PLUGINS_DIR:plugins}
+  pipeline:
+    poll-interval-seconds: ${PIPELINE_POLL_INTERVAL:30}
+    scan-cron: ${PIPELINE_SCAN_CRON:0 0 6 * * *}
+    relevance-threshold: ${PIPELINE_RELEVANCE_THRESHOLD:0.7}
+    quality-threshold: ${PIPELINE_QUALITY_THRESHOLD:0.5}
+    min-content-length: ${PIPELINE_MIN_CONTENT_LENGTH:200}
+    max-retries: ${PIPELINE_MAX_RETRIES:3}
+    dedup-similarity-threshold: ${PIPELINE_DEDUP_THRESHOLD:0.95}
+  llm:
+    primary: ${LLM_PRIMARY:ollama}
+    cloud-fallback: ${LLM_CLOUD_FALLBACK:openai}
+    ollama:
+      url: ${LLM_OLLAMA_URL:http://localhost:11434}
+      timeout-seconds: ${LLM_OLLAMA_TIMEOUT:120}
+      models:
+        relevance: ${LLM_OLLAMA_MODEL_RELEVANCE:qwen2.5:14b}
+        classification: ${LLM_OLLAMA_MODEL_CLASSIFICATION:qwen2.5:14b}
+        summarization: ${LLM_OLLAMA_MODEL_SUMMARIZATION:qwen2.5:32b}
+        embedding: ${LLM_OLLAMA_MODEL_EMBEDDING:nomic-embed-text}
+        generation: ${LLM_OLLAMA_MODEL_GENERATION:qwen2.5:32b}
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      timeout-seconds: ${LLM_OPENAI_TIMEOUT:60}
+      models:
+        relevance: ${LLM_OPENAI_MODEL_RELEVANCE:gpt-4o-mini}
+        classification: ${LLM_OPENAI_MODEL_CLASSIFICATION:gpt-4o-mini}
+        summarization: ${LLM_OPENAI_MODEL_SUMMARIZATION:gpt-4o}
+        embedding: ${LLM_OPENAI_MODEL_EMBEDDING:text-embedding-3-small}
+        generation: ${LLM_OPENAI_MODEL_GENERATION:gpt-4o}
+    claude:
+      api-key: ${ANTHROPIC_API_KEY:}
+      timeout-seconds: ${LLM_CLAUDE_TIMEOUT:60}
+      models:
+        relevance: ${LLM_CLAUDE_MODEL_RELEVANCE:claude-haiku-4-5-20251001}
+        classification: ${LLM_CLAUDE_MODEL_CLASSIFICATION:claude-haiku-4-5-20251001}
+        summarization: ${LLM_CLAUDE_MODEL_SUMMARIZATION:claude-sonnet-4-6}
+        generation: ${LLM_CLAUDE_MODEL_GENERATION:claude-sonnet-4-6}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    com.topicscanner: ${LOG_LEVEL:INFO}
+    com.cncf.scanner: ${LOG_LEVEL:INFO}

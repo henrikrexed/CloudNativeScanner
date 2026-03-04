@@ -1,0 +1,45 @@
+# Build outputs
+target/
+*.class
+*.jar
+*.war
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# BMAD framework (not part of project source)
+_bmad/
+_bmad-output/
+
+# Claude Code
+.claude/
+
+# Cursor
+.cursor/
+
+# Environment files
+.env
+*.env.local
+
+# Logs
+*.log
+
+# Node
+node_modules/
+.next/
+out/
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Temporary/generated docs (not project source)
+*.md.bak
