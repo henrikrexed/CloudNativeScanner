@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   fetchUserContent,
@@ -13,12 +13,15 @@ import {
   fetchGeneratedContentDetail,
   regenerateContent,
   exportMarkdown,
+  type UserContent,
+  type GeneratedContent,
 } from "@/lib/v2api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
@@ -41,18 +44,28 @@ import {
   Loader2,
   Eye,
   MessageSquare,
-  X,
+  AlertTriangle,
 } from "lucide-react";
 
-export default function ContentStudioPage() {
+// Wrap in Suspense for useSearchParams (Next.js 14 requirement)
+export default function StudioPageWrapper() {
+  return (
+    <Suspense fallback={<StudioSkeleton />}>
+      <ContentStudioPage />
+    </Suspense>
+  );
+}
+
+function ContentStudioPage() {
   const searchParams = useSearchParams();
   const generatedHighlight = searchParams.get("generated");
 
   const [tab, setTab] = useState("content");
-  const [userContent, setUserContent] = useState<Record<string, unknown>[]>([]);
-  const [generated, setGenerated] = useState<Record<string, unknown>[]>([]);
-  const [styleProfile, setStyleProfile] = useState<Record<string, unknown> | null>(null);
+  const [userContent, setUserContent] = useState<UserContent[]>([]);
+  const [generated, setGenerated] = useState<GeneratedContent[]>([]);
+  const [styleProfile, setStyleProfile] = useState<Record<string, string> | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Upload dialog
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -65,11 +78,12 @@ export default function ContentStudioPage() {
 
   // View generated content
   const [viewOpen, setViewOpen] = useState(false);
-  const [viewContent, setViewContent] = useState<Record<string, unknown> | null>(null);
+  const [viewContent, setViewContent] = useState<GeneratedContent | null>(null);
   const [feedback, setFeedback] = useState("");
   const [regenerating, setRegenerating] = useState(false);
 
   const loadData = useCallback(async () => {
+    setError(null);
     try {
       const [uc, gen, sp] = await Promise.all([
         fetchUserContent(),
@@ -78,8 +92,9 @@ export default function ContentStudioPage() {
       ]);
       setUserContent(uc);
       setGenerated(gen);
-      setStyleProfile(sp as Record<string, unknown> | null);
+      setStyleProfile(sp);
     } catch (e) {
+      setError("Failed to load studio data");
       console.error("Failed to load studio data", e);
     } finally {
       setLoading(false);
@@ -90,7 +105,6 @@ export default function ContentStudioPage() {
     loadData();
   }, [loadData]);
 
-  // If redirected from topic detail with generated content
   useEffect(() => {
     if (generatedHighlight) {
       setTab("generated");
@@ -155,9 +169,9 @@ export default function ContentStudioPage() {
     if (!viewContent || !feedback.trim()) return;
     setRegenerating(true);
     try {
-      const result = await regenerateContent(Number(viewContent.id), feedback);
+      const result = await regenerateContent(viewContent.id, feedback);
       if (result?.id) {
-        await openGenerated(Number(result.id));
+        await openGenerated(result.id);
         await loadData();
       }
     } catch (e) {
@@ -183,15 +197,17 @@ export default function ContentStudioPage() {
   }
 
   if (loading) {
+    return <StudioSkeleton />;
+  }
+
+  if (error) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-10 w-80" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-32" />
-          ))}
-        </div>
+      <div className="text-center py-20">
+        <AlertTriangle className="h-8 w-8 mx-auto text-red-400 mb-3" />
+        <p className="text-gray-600">{error}</p>
+        <Button variant="outline" className="mt-4" onClick={() => { setLoading(true); loadData(); }}>
+          Retry
+        </Button>
       </div>
     );
   }
@@ -207,7 +223,7 @@ export default function ContentStudioPage() {
           </p>
         </div>
         <Button onClick={() => setUploadOpen(true)}>
-          <Upload className="h-4 w-4 mr-2" />
+          <Upload className="h-4 w-4 mr-2" aria-hidden="true" />
           Upload Content
         </Button>
       </div>
@@ -217,7 +233,7 @@ export default function ContentStudioPage() {
         <Card className="border-primary-200 bg-primary-50/30">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Palette className="h-4 w-4 text-primary-600" />
+              <Palette className="h-4 w-4 text-primary-600" aria-hidden="true" />
               <h3 className="text-sm font-semibold text-primary-900">
                 Your Writing Style Profile
               </h3>
@@ -229,7 +245,7 @@ export default function ContentStudioPage() {
                     {key.replace(/_/g, " ")}
                   </span>
                   <p className="font-medium text-gray-800 mt-0.5">
-                    {String(value)}
+                    {value}
                   </p>
                 </div>
               ))}
@@ -254,7 +270,7 @@ export default function ContentStudioPage() {
           {userContent.length === 0 ? (
             <Card>
               <CardContent className="p-12 text-center">
-                <Upload className="h-10 w-10 mx-auto text-gray-300 mb-3" />
+                <Upload className="h-10 w-10 mx-auto text-gray-300 mb-3" aria-hidden="true" />
                 <p className="text-gray-500">
                   Upload your existing content to teach the AI your writing style
                 </p>
@@ -270,16 +286,16 @@ export default function ContentStudioPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {userContent.map((uc) => (
-                <Card key={String(uc.id)}>
+                <Card key={uc.id}>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1 min-w-0">
                         <h4 className="text-sm font-medium text-gray-900 truncate">
-                          {String(uc.title || "Untitled")}
+                          {uc.title || "Untitled"}
                         </h4>
                         <div className="flex items-center gap-2 mt-1">
                           <Badge variant="secondary" className="text-xs">
-                            {String(uc.content_type || "unknown")}
+                            {uc.content_type || "unknown"}
                           </Badge>
                           {uc.style_analyzed ? (
                             <Badge variant="success" className="text-xs">
@@ -295,16 +311,15 @@ export default function ContentStudioPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() =>
-                          handleDeleteContent(Number(uc.id))
-                        }
+                        aria-label={`Delete ${uc.title || "content"}`}
+                        onClick={() => handleDeleteContent(uc.id)}
                       >
                         <Trash2 className="h-3.5 w-3.5 text-red-500" />
                       </Button>
                     </div>
                     {uc.content && (
                       <p className="text-xs text-gray-500 line-clamp-3 mb-3">
-                        {truncate(String(uc.content), 200)}
+                        {truncate(uc.content, 200)}
                       </p>
                     )}
                     <div className="flex items-center gap-2">
@@ -312,15 +327,15 @@ export default function ContentStudioPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleAnalyze(Number(uc.id))}
+                          onClick={() => handleAnalyze(uc.id)}
                         >
-                          <Sparkles className="h-3 w-3 mr-1" />
+                          <Sparkles className="h-3 w-3 mr-1" aria-hidden="true" />
                           Analyze Style
                         </Button>
                       )}
                       {uc.created_at && (
                         <span className="text-xs text-gray-400 ml-auto">
-                          {formatDate(String(uc.created_at))}
+                          {formatDate(uc.created_at)}
                         </span>
                       )}
                     </div>
@@ -336,7 +351,7 @@ export default function ContentStudioPage() {
           {generated.length === 0 ? (
             <Card>
               <CardContent className="p-12 text-center">
-                <FileText className="h-10 w-10 mx-auto text-gray-300 mb-3" />
+                <FileText className="h-10 w-10 mx-auto text-gray-300 mb-3" aria-hidden="true" />
                 <p className="text-gray-500">
                   No generated content yet. Go to a topic and click Generate.
                 </p>
@@ -346,7 +361,7 @@ export default function ContentStudioPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {generated.map((g) => (
                 <Card
-                  key={String(g.id)}
+                  key={g.id}
                   className={
                     generatedHighlight === String(g.id)
                       ? "ring-2 ring-primary-500"
@@ -357,15 +372,14 @@ export default function ContentStudioPage() {
                     <div className="flex items-start justify-between mb-2">
                       <div>
                         <Badge variant="default" className="text-xs">
-                          {String(g.output_format || "unknown")
-                            .replace(/_/g, " ")}
+                          {(g.output_format || "unknown").replace(/_/g, " ")}
                         </Badge>
                         {g.model_used && (
                           <Badge
                             variant="secondary"
                             className="text-xs ml-1"
                           >
-                            {String(g.model_used)}
+                            {g.model_used}
                           </Badge>
                         )}
                       </div>
@@ -373,14 +387,16 @@ export default function ContentStudioPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => openGenerated(Number(g.id))}
+                          aria-label="View content"
+                          onClick={() => openGenerated(g.id)}
                         >
                           <Eye className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleExport(Number(g.id))}
+                          aria-label="Export as markdown"
+                          onClick={() => handleExport(g.id)}
                         >
                           <Download className="h-3.5 w-3.5" />
                         </Button>
@@ -388,12 +404,12 @@ export default function ContentStudioPage() {
                     </div>
                     {g.generated_text && (
                       <p className="text-xs text-gray-500 line-clamp-4">
-                        {truncate(String(g.generated_text), 250)}
+                        {truncate(g.generated_text, 250)}
                       </p>
                     )}
                     {g.created_at && (
                       <p className="text-xs text-gray-400 mt-2">
-                        {formatDate(String(g.created_at))}
+                        {formatDate(g.created_at)}
                       </p>
                     )}
                   </CardContent>
@@ -418,11 +434,11 @@ export default function ContentStudioPage() {
           >
             <TabsList className="w-full">
               <TabsTrigger value="paste" className="flex-1">
-                <FileText className="h-3 w-3 mr-1" />
+                <FileText className="h-3 w-3 mr-1" aria-hidden="true" />
                 Paste Text
               </TabsTrigger>
               <TabsTrigger value="url" className="flex-1">
-                <Link2 className="h-3 w-3 mr-1" />
+                <Link2 className="h-3 w-3 mr-1" aria-hidden="true" />
                 Import URL
               </TabsTrigger>
             </TabsList>
@@ -430,10 +446,11 @@ export default function ContentStudioPage() {
             <TabsContent value="paste">
               <div className="space-y-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-700">
+                  <label htmlFor="upload-title" className="text-sm font-medium text-gray-700">
                     Title
                   </label>
                   <Input
+                    id="upload-title"
                     value={uploadTitle}
                     onChange={(e) => setUploadTitle(e.target.value)}
                     placeholder="Article title"
@@ -441,25 +458,27 @@ export default function ContentStudioPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">
+                  <label htmlFor="upload-type" className="text-sm font-medium text-gray-700">
                     Content Type
                   </label>
-                  <select
+                  <Select
+                    id="upload-type"
                     value={uploadType}
                     onChange={(e) => setUploadType(e.target.value)}
-                    className="mt-1 flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
+                    className="mt-1"
                   >
                     <option value="blog_post">Blog Post</option>
                     <option value="youtube_script">YouTube Script</option>
                     <option value="linkedin_post">LinkedIn Post</option>
                     <option value="newsletter">Newsletter</option>
-                  </select>
+                  </Select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700">
+                  <label htmlFor="upload-content" className="text-sm font-medium text-gray-700">
                     Content
                   </label>
                   <Textarea
+                    id="upload-content"
                     value={uploadText}
                     onChange={(e) => setUploadText(e.target.value)}
                     placeholder="Paste your content here..."
@@ -472,10 +491,11 @@ export default function ContentStudioPage() {
 
             <TabsContent value="url">
               <div>
-                <label className="text-sm font-medium text-gray-700">
+                <label htmlFor="upload-url" className="text-sm font-medium text-gray-700">
                   URL
                 </label>
                 <Input
+                  id="upload-url"
                   value={uploadUrl}
                   onChange={(e) => setUploadUrl(e.target.value)}
                   placeholder="https://medium.com/your-article"
@@ -502,9 +522,9 @@ export default function ContentStudioPage() {
               }
             >
               {uploading ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
               ) : (
-                <Upload className="h-4 w-4 mr-2" />
+                <Upload className="h-4 w-4 mr-2" aria-hidden="true" />
               )}
               Upload
             </Button>
@@ -518,11 +538,11 @@ export default function ContentStudioPage() {
           <DialogClose onClose={() => setViewOpen(false)} />
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
+              <FileText className="h-5 w-5" aria-hidden="true" />
               Generated Content
               {viewContent?.output_format && (
                 <Badge variant="default" className="text-xs ml-2">
-                  {String(viewContent.output_format).replace(/_/g, " ")}
+                  {viewContent.output_format.replace(/_/g, " ")}
                 </Badge>
               )}
             </DialogTitle>
@@ -530,20 +550,19 @@ export default function ContentStudioPage() {
 
           {viewContent && (
             <div className="space-y-4">
-              <div className="prose prose-sm max-w-none">
-                <pre className="whitespace-pre-wrap text-sm font-sans bg-gray-50 rounded-lg p-4 max-h-[400px] overflow-y-auto">
-                  {String(viewContent.generated_text || "")}
-                </pre>
-              </div>
+              <pre className="whitespace-pre-wrap text-sm font-sans bg-gray-50 rounded-lg p-4 max-h-[400px] overflow-y-auto text-gray-700">
+                {viewContent.generated_text || ""}
+              </pre>
 
               {/* Regenerate with feedback */}
               <div className="border-t border-gray-200 pt-4">
-                <h4 className="text-sm font-medium text-gray-700 flex items-center gap-1 mb-2">
-                  <MessageSquare className="h-4 w-4" />
+                <label htmlFor="regen-feedback" className="text-sm font-medium text-gray-700 flex items-center gap-1 mb-2">
+                  <MessageSquare className="h-4 w-4" aria-hidden="true" />
                   Regenerate with Feedback
-                </h4>
+                </label>
                 <div className="flex gap-2">
                   <Textarea
+                    id="regen-feedback"
                     value={feedback}
                     onChange={(e) => setFeedback(e.target.value)}
                     placeholder="e.g. make it more technical, add code examples, shorter intro..."
@@ -553,6 +572,7 @@ export default function ContentStudioPage() {
                   <Button
                     onClick={handleRegenerate}
                     disabled={!feedback.trim() || regenerating}
+                    aria-label="Regenerate"
                     className="self-end"
                   >
                     {regenerating ? (
@@ -568,9 +588,9 @@ export default function ContentStudioPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleExport(Number(viewContent.id))}
+                  onClick={() => handleExport(viewContent.id)}
                 >
-                  <Download className="h-4 w-4 mr-1" />
+                  <Download className="h-4 w-4 mr-1" aria-hidden="true" />
                   Export Markdown
                 </Button>
               </div>
@@ -578,6 +598,20 @@ export default function ContentStudioPage() {
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function StudioSkeleton() {
+  return (
+    <div className="space-y-6">
+      <Skeleton className="h-8 w-48" />
+      <Skeleton className="h-10 w-80" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} className="h-32" />
+        ))}
+      </div>
     </div>
   );
 }

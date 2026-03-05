@@ -2,13 +2,20 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { fetchTopics, fetchStats } from "@/lib/v2api";
+import {
+  fetchTopics,
+  fetchStats,
+  type TopicSummary,
+  type TopicsPage,
+  type DashboardStats,
+} from "@/lib/v2api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatCard } from "@/components/stat-card";
 import { formatRelativeDate, truncate, qualityBadge } from "@/lib/utils";
 import {
   BarChart3,
@@ -21,26 +28,11 @@ import {
   Search,
 } from "lucide-react";
 
-interface Stats {
-  totalTopics: number;
-  topicsThisWeek: number;
-  pendingJobs: number;
-  failedJobs: number;
-  byCategory: Record<string, unknown>[];
-  bySource: Record<string, unknown>[];
-}
-
-interface TopicsResponse {
-  topics: Record<string, unknown>[];
-  total: number;
-  page: number;
-  size: number;
-}
-
 export default function DashboardPage() {
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [topicsData, setTopicsData] = useState<TopicsResponse | null>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [topicsData, setTopicsData] = useState<TopicsPage | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Filters
   const [page, setPage] = useState(0);
@@ -53,43 +45,52 @@ export default function DashboardPage() {
   const pageSize = 20;
 
   const loadTopics = useCallback(async () => {
-    try {
-      const params: Record<string, unknown> = { page, size: pageSize };
-      if (categoryId) params.categoryId = Number(categoryId);
-      if (sourceType) params.sourceType = sourceType;
-      if (minQuality) params.minQuality = Number(minQuality);
-      if (dateFrom) params.dateFrom = dateFrom;
-      if (dateTo) params.dateTo = dateTo;
-      const data = await fetchTopics(params as Parameters<typeof fetchTopics>[0]);
-      setTopicsData(data);
-    } catch (e) {
-      console.error("Failed to load topics", e);
-    }
+    const params: Record<string, unknown> = { page, size: pageSize };
+    if (categoryId) params.categoryId = Number(categoryId);
+    if (sourceType) params.sourceType = sourceType;
+    if (minQuality) params.minQuality = Number(minQuality);
+    if (dateFrom) params.dateFrom = dateFrom;
+    if (dateTo) params.dateTo = dateTo;
+    const data = await fetchTopics(params as Parameters<typeof fetchTopics>[0]);
+    setTopicsData(data);
   }, [page, categoryId, sourceType, minQuality, dateFrom, dateTo]);
 
+  // Initial load: stats + topics
   useEffect(() => {
+    let cancelled = false;
     async function init() {
       setLoading(true);
+      setError(null);
       try {
-        const [s] = await Promise.all([fetchStats(), loadTopics()]);
-        setStats(s);
+        const [s, _] = await Promise.all([fetchStats(), loadTopics()]);
+        if (!cancelled) setStats(s);
       } catch (e) {
+        if (!cancelled) setError("Failed to load dashboard data. Check that the API is running.");
         console.error("Failed to load dashboard", e);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     init();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    loadTopics();
+    return () => { cancelled = true; };
   }, [loadTopics]);
 
   const totalPages = topicsData ? Math.ceil(topicsData.total / pageSize) : 0;
 
   if (loading) {
     return <DashboardSkeleton />;
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-20">
+        <AlertTriangle className="h-8 w-8 mx-auto text-red-400 mb-3" />
+        <p className="text-gray-600">{error}</p>
+        <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
+          Retry
+        </Button>
+      </div>
+    );
   }
 
   return (
@@ -133,10 +134,11 @@ export default function DashboardPage() {
         <CardContent className="p-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex-1 min-w-[140px]">
-              <label className="text-xs font-medium text-gray-500 mb-1 block">
+              <label htmlFor="filter-source" className="text-xs font-medium text-gray-500 mb-1 block">
                 Source
               </label>
               <Select
+                id="filter-source"
                 value={sourceType}
                 onChange={(e) => {
                   setSourceType(e.target.value);
@@ -144,18 +146,19 @@ export default function DashboardPage() {
                 }}
               >
                 <option value="">All Sources</option>
-                {stats?.bySource.map((s: Record<string, unknown>) => (
-                  <option key={String(s.name)} value={String(s.name)}>
-                    {String(s.name)}
+                {stats?.bySource.map((s) => (
+                  <option key={s.name} value={s.name}>
+                    {s.name}
                   </option>
                 ))}
               </Select>
             </div>
             <div className="flex-1 min-w-[140px]">
-              <label className="text-xs font-medium text-gray-500 mb-1 block">
+              <label htmlFor="filter-category" className="text-xs font-medium text-gray-500 mb-1 block">
                 Category
               </label>
               <Select
+                id="filter-category"
                 value={categoryId}
                 onChange={(e) => {
                   setCategoryId(e.target.value);
@@ -163,18 +166,19 @@ export default function DashboardPage() {
                 }}
               >
                 <option value="">All Categories</option>
-                {stats?.byCategory.map((c: Record<string, unknown>) => (
-                  <option key={String(c.name)} value={String(c.id || c.name)}>
-                    {String(c.name)}
+                {stats?.byCategory.map((c) => (
+                  <option key={c.name} value={String(c.id || c.name)}>
+                    {c.name}
                   </option>
                 ))}
               </Select>
             </div>
             <div className="w-[120px]">
-              <label className="text-xs font-medium text-gray-500 mb-1 block">
+              <label htmlFor="filter-quality" className="text-xs font-medium text-gray-500 mb-1 block">
                 Min Quality
               </label>
               <Input
+                id="filter-quality"
                 type="number"
                 min="0"
                 max="1"
@@ -188,10 +192,11 @@ export default function DashboardPage() {
               />
             </div>
             <div className="w-[140px]">
-              <label className="text-xs font-medium text-gray-500 mb-1 block">
+              <label htmlFor="filter-from" className="text-xs font-medium text-gray-500 mb-1 block">
                 From
               </label>
               <Input
+                id="filter-from"
                 type="date"
                 value={dateFrom}
                 onChange={(e) => {
@@ -201,10 +206,11 @@ export default function DashboardPage() {
               />
             </div>
             <div className="w-[140px]">
-              <label className="text-xs font-medium text-gray-500 mb-1 block">
+              <label htmlFor="filter-to" className="text-xs font-medium text-gray-500 mb-1 block">
                 To
               </label>
               <Input
+                id="filter-to"
                 type="date"
                 value={dateTo}
                 onChange={(e) => {
@@ -252,14 +258,14 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-3">
               {topicsData?.topics.map((topic) => (
-                <TopicRow key={String(topic.id)} topic={topic} />
+                <TopicRow key={topic.id} topic={topic} />
               ))}
             </div>
           )}
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+            <nav aria-label="Pagination" className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
               <p className="text-sm text-gray-500">
                 Page {page + 1} of {totalPages}
               </p>
@@ -268,6 +274,7 @@ export default function DashboardPage() {
                   variant="outline"
                   size="sm"
                   disabled={page === 0}
+                  aria-label="Previous page"
                   onClick={() => setPage((p) => p - 1)}
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -276,12 +283,13 @@ export default function DashboardPage() {
                   variant="outline"
                   size="sm"
                   disabled={page >= totalPages - 1}
+                  aria-label="Next page"
                   onClick={() => setPage((p) => p + 1)}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
-            </div>
+            </nav>
           )}
         </CardContent>
       </Card>
@@ -289,34 +297,8 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({
-  title,
-  value,
-  icon,
-}: {
-  title: string;
-  value: number;
-  icon: React.ReactNode;
-}) {
-  return (
-    <Card>
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-500">{title}</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{value.toLocaleString()}</p>
-          </div>
-          <div className="h-10 w-10 rounded-lg bg-gray-50 flex items-center justify-center">
-            {icon}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function TopicRow({ topic }: { topic: Record<string, unknown> }) {
-  const quality = Number(topic.quality_score || topic.qualityScore || 0);
+function TopicRow({ topic }: { topic: TopicSummary }) {
+  const quality = topic.quality_score ?? 0;
 
   return (
     <Link
@@ -326,20 +308,20 @@ function TopicRow({ topic }: { topic: Record<string, unknown> }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
           <h3 className="text-sm font-medium text-gray-900 group-hover:text-primary-700 truncate">
-            {String(topic.title || "Untitled")}
+            {topic.title || "Untitled"}
           </h3>
           {topic.url && (
-            <ExternalLink className="h-3 w-3 text-gray-400 flex-shrink-0" />
+            <ExternalLink className="h-3 w-3 text-gray-400 flex-shrink-0" aria-hidden="true" />
           )}
         </div>
         {topic.summary && (
           <p className="text-xs text-gray-500 line-clamp-2">
-            {truncate(String(topic.summary), 200)}
+            {truncate(topic.summary, 200)}
           </p>
         )}
-        <div className="flex items-center gap-2 mt-2">
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
           {topic.source_type && (
-            <Badge variant="secondary">{String(topic.source_type)}</Badge>
+            <Badge variant="secondary">{topic.source_type}</Badge>
           )}
           {topic.pipeline_stage && (
             <Badge
@@ -347,7 +329,7 @@ function TopicRow({ topic }: { topic: Record<string, unknown> }) {
                 topic.pipeline_stage === "analyzed" ? "success" : "outline"
               }
             >
-              {String(topic.pipeline_stage)}
+              {topic.pipeline_stage}
             </Badge>
           )}
           {quality > 0 && (
@@ -359,9 +341,9 @@ function TopicRow({ topic }: { topic: Record<string, unknown> }) {
       </div>
       <div className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
         {topic.collected_at
-          ? formatRelativeDate(String(topic.collected_at))
+          ? formatRelativeDate(topic.collected_at)
           : topic.source_date
-          ? formatRelativeDate(String(topic.source_date))
+          ? formatRelativeDate(topic.source_date)
           : ""}
       </div>
     </Link>

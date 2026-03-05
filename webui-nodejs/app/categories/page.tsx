@@ -7,6 +7,8 @@ import {
   updateCategory,
   deleteCategory,
   fetchScanners,
+  type Category,
+  type ScannerInfo,
 } from "@/lib/v2api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,32 +23,12 @@ import {
   DialogTitle,
   DialogClose,
 } from "@/components/ui/dialog";
-import {
-  FolderOpen,
-  Plus,
-  Pencil,
-  Trash2,
-  X,
-  Loader2,
-  Hash,
-  Ban,
-} from "lucide-react";
-
-interface Category {
-  id: number;
-  name: string;
-  description?: string;
-  keywords?: string;
-  negative_keywords?: string;
-  source_types?: string;
-  scan_interval_minutes?: number;
-  topic_count?: number;
-  last_scan_time?: string;
-}
+import { FolderOpen, Plus, Pencil, Trash2, Loader2, Hash, Ban, AlertTriangle } from "lucide-react";
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
-  const [scanners, setScanners] = useState<{ type: string; displayName: string }[]>([]);
+  const [scanners, setScanners] = useState<ScannerInfo[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -62,14 +44,16 @@ export default function CategoriesPage() {
   const [scanInterval, setScanInterval] = useState("60");
 
   const loadData = useCallback(async () => {
+    setError(null);
     try {
       const [cats, scans] = await Promise.all([
         fetchCategories(),
         fetchScanners(),
       ]);
-      setCategories(cats as Category[]);
+      setCategories(cats);
       setScanners(scans);
     } catch (e) {
+      setError("Failed to load categories");
       console.error("Failed to load categories", e);
     } finally {
       setLoading(false);
@@ -153,6 +137,18 @@ export default function CategoriesPage() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="text-center py-20">
+        <AlertTriangle className="h-8 w-8 mx-auto text-red-400 mb-3" />
+        <p className="text-gray-600">{error}</p>
+        <Button variant="outline" className="mt-4" onClick={() => { setLoading(true); loadData(); }}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -205,8 +201,9 @@ export default function CategoriesPage() {
 
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-gray-700">Name</label>
+              <label htmlFor="cat-name" className="text-sm font-medium text-gray-700">Name</label>
               <Input
+                id="cat-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Cloud Native"
@@ -214,10 +211,11 @@ export default function CategoriesPage() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">
+              <label htmlFor="cat-desc" className="text-sm font-medium text-gray-700">
                 Description
               </label>
               <Textarea
+                id="cat-desc"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="What topics should this category capture?"
@@ -330,10 +328,10 @@ function CategoryCard({
             <CardTitle className="text-base">{category.name}</CardTitle>
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={onEdit}>
+            <Button variant="ghost" size="icon" onClick={onEdit} aria-label={`Edit ${category.name}`}>
               <Pencil className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={onDelete}>
+            <Button variant="ghost" size="icon" onClick={onDelete} aria-label={`Delete ${category.name}`}>
               <Trash2 className="h-3.5 w-3.5 text-red-500" />
             </Button>
           </div>

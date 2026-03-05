@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { fetchTopicDetail, generateContent } from "@/lib/v2api";
+import {
+  fetchTopicDetail,
+  generateContent,
+  type TopicDetail,
+  type TopicSummary,
+} from "@/lib/v2api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +24,7 @@ import {
   Star,
   Shield,
   Loader2,
+  AlertTriangle,
 } from "lucide-react";
 
 export default function TopicDetailPage() {
@@ -26,29 +32,38 @@ export default function TopicDetailPage() {
   const router = useRouter();
   const id = Number(params.id);
 
-  const [topic, setTopic] = useState<Record<string, unknown> | null>(null);
-  const [relatedTopics, setRelatedTopics] = useState<Record<string, unknown>[]>([]);
+  const [topic, setTopic] = useState<TopicDetail | null>(null);
+  const [relatedTopics, setRelatedTopics] = useState<TopicSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [genFormat, setGenFormat] = useState("blog_post");
 
   useEffect(() => {
+    if (isNaN(id)) {
+      setError("Invalid topic ID");
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
     async function load() {
       setLoading(true);
+      setError(null);
       try {
         const data = await fetchTopicDetail(id);
-        setRelatedTopics(
-          (data.relatedTopics as Record<string, unknown>[]) || []
-        );
+        if (cancelled) return;
+        setRelatedTopics(data.relatedTopics || []);
         const { relatedTopics: _, ...topicData } = data;
         setTopic(topicData);
       } catch (e) {
+        if (!cancelled) setError("Failed to load topic");
         console.error("Failed to load topic", e);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
-    if (id) load();
+    load();
+    return () => { cancelled = true; };
   }, [id]);
 
   async function handleGenerate() {
@@ -72,10 +87,11 @@ export default function TopicDetailPage() {
     return <TopicSkeleton />;
   }
 
-  if (!topic) {
+  if (error || !topic) {
     return (
       <div className="text-center py-20">
-        <p className="text-gray-500">Topic not found</p>
+        <AlertTriangle className="h-8 w-8 mx-auto text-red-400 mb-3" />
+        <p className="text-gray-500">{error || "Topic not found"}</p>
         <Button variant="outline" className="mt-4" onClick={() => router.push("/")}>
           Back to Dashboard
         </Button>
@@ -83,9 +99,9 @@ export default function TopicDetailPage() {
     );
   }
 
-  const quality = Number(topic.quality_score || 0);
-  const relevance = Number(topic.relevance_score || 0);
-  const tags = topic.tags ? String(topic.tags).split(",").filter(Boolean) : [];
+  const quality = topic.quality_score ?? 0;
+  const relevance = topic.relevance_score ?? 0;
+  const tags = topic.tags ? topic.tags.split(",").filter(Boolean) : [];
 
   return (
     <div className="space-y-6">
@@ -95,19 +111,19 @@ export default function TopicDetailPage() {
           onClick={() => router.back()}
           className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-3"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Back
         </button>
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="flex-1">
             <h1 className="text-xl font-bold text-gray-900">
-              {String(topic.title)}
+              {topic.title}
             </h1>
-            <div className="flex items-center gap-3 mt-2">
+            <div className="flex items-center gap-3 mt-2 flex-wrap">
               {topic.source_type && (
                 <Badge variant="secondary">
-                  <Globe className="h-3 w-3 mr-1" />
-                  {String(topic.source_type)}
+                  <Globe className="h-3 w-3 mr-1" aria-hidden="true" />
+                  {topic.source_type}
                 </Badge>
               )}
               {topic.pipeline_stage && (
@@ -116,25 +132,25 @@ export default function TopicDetailPage() {
                     topic.pipeline_stage === "analyzed" ? "success" : "outline"
                   }
                 >
-                  {String(topic.pipeline_stage)}
+                  {topic.pipeline_stage}
                 </Badge>
               )}
               {topic.source_date && (
                 <span className="text-xs text-gray-400 flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  {formatDate(String(topic.source_date))}
+                  <Calendar className="h-3 w-3" aria-hidden="true" />
+                  {formatDate(topic.source_date)}
                 </span>
               )}
             </div>
           </div>
           {topic.url && (
             <a
-              href={String(topic.url)}
+              href={topic.url}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700"
             >
-              <ExternalLink className="h-4 w-4" />
+              <ExternalLink className="h-4 w-4" aria-hidden="true" />
               Source
             </a>
           )}
@@ -145,7 +161,7 @@ export default function TopicDetailPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <Star className="h-5 w-5 text-yellow-500" />
+            <Star className="h-5 w-5 text-yellow-500" aria-hidden="true" />
             <div>
               <p className="text-xs text-gray-500">Quality Score</p>
               <p className={`text-lg font-bold ${qualityBadge(quality)} rounded px-1`}>
@@ -156,7 +172,7 @@ export default function TopicDetailPage() {
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <Shield className="h-5 w-5 text-blue-500" />
+            <Shield className="h-5 w-5 text-blue-500" aria-hidden="true" />
             <div>
               <p className="text-xs text-gray-500">Relevance Score</p>
               <p className="text-lg font-bold text-gray-900">
@@ -191,7 +207,7 @@ export default function TopicDetailPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-              {String(topic.summary)}
+              {topic.summary}
             </p>
           </CardContent>
         </Card>
@@ -204,11 +220,9 @@ export default function TopicDetailPage() {
             <CardTitle>Extracted Content</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="prose prose-sm max-w-none text-gray-700">
-              <pre className="whitespace-pre-wrap text-sm font-sans bg-gray-50 rounded-lg p-4 max-h-[500px] overflow-y-auto">
-                {String(topic.extracted_content)}
-              </pre>
-            </div>
+            <pre className="whitespace-pre-wrap text-sm font-sans bg-gray-50 rounded-lg p-4 max-h-[500px] overflow-y-auto text-gray-700">
+              {topic.extracted_content}
+            </pre>
           </CardContent>
         </Card>
       )}
@@ -217,13 +231,15 @@ export default function TopicDetailPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary-600" />
+            <Sparkles className="h-5 w-5 text-primary-600" aria-hidden="true" />
             Generate Content
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-3">
+            <label htmlFor="gen-format" className="sr-only">Output format</label>
             <Select
+              id="gen-format"
               value={genFormat}
               onChange={(e) => setGenFormat(e.target.value)}
               className="w-48"
@@ -236,12 +252,12 @@ export default function TopicDetailPage() {
             <Button onClick={handleGenerate} disabled={generating}>
               {generating ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
                   Generating...
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-4 w-4 mr-2" />
+                  <Sparkles className="h-4 w-4 mr-2" aria-hidden="true" />
                   Generate
                 </>
               )}
@@ -265,23 +281,23 @@ export default function TopicDetailPage() {
             <div className="space-y-2">
               {relatedTopics.map((rt) => (
                 <Link
-                  key={String(rt.id)}
+                  key={rt.id}
                   href={`/topics/${rt.id}`}
                   className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
-                      {String(rt.title)}
+                      {rt.title}
                     </p>
                     <div className="flex items-center gap-2 mt-1">
                       {rt.source_type && (
                         <Badge variant="secondary" className="text-xs">
-                          {String(rt.source_type)}
+                          {rt.source_type}
                         </Badge>
                       )}
                     </div>
                   </div>
-                  <ExternalLink className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                  <ExternalLink className="h-3 w-3 text-gray-400 flex-shrink-0" aria-hidden="true" />
                 </Link>
               ))}
             </div>
@@ -297,7 +313,7 @@ function TopicSkeleton() {
     <div className="space-y-6">
       <Skeleton className="h-6 w-16" />
       <Skeleton className="h-8 w-96" />
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[1, 2, 3].map((i) => (
           <Skeleton key={i} className="h-20" />
         ))}

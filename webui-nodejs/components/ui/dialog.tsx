@@ -14,21 +14,27 @@ function Dialog({ open, onClose, children }: DialogProps) {
   React.useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
+      const handleEscape = (e: KeyboardEvent) => {
+        if (e.key === "Escape") onClose();
+      };
+      document.addEventListener("keydown", handleEscape);
+      return () => {
+        document.body.style.overflow = "";
+        document.removeEventListener("keydown", handleEscape);
+      };
     } else {
       document.body.style.overflow = "";
     }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [open]);
+  }, [open, onClose]);
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
       <div
         className="fixed inset-0 bg-black/50 animate-fade-in"
         onClick={onClose}
+        aria-hidden="true"
       />
       <div className="relative z-50 w-full max-w-lg mx-4 animate-scale-in">
         {children}
@@ -83,6 +89,7 @@ function DialogClose({ onClose }: { onClose: () => void }) {
   return (
     <button
       onClick={onClose}
+      aria-label="Close dialog"
       className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100 transition-opacity"
     >
       <X className="h-4 w-4" />

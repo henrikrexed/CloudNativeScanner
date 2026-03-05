@@ -29,6 +29,7 @@ function TabsList({
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
+      role="tablist"
       className={cn(
         "inline-flex h-9 items-center justify-center rounded-lg bg-gray-100 p-1 text-gray-500",
         className
@@ -48,6 +49,8 @@ function TabsTrigger({ className, value, ...props }: TabsTriggerProps) {
 
   return (
     <button
+      role="tab"
+      aria-selected={isActive}
       className={cn(
         "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all",
         isActive
@@ -68,7 +71,7 @@ interface TabsContentProps extends React.HTMLAttributes<HTMLDivElement> {
 function TabsContent({ className, value, ...props }: TabsContentProps) {
   const ctx = React.useContext(TabsContext);
   if (ctx.value !== value) return null;
-  return <div className={cn("mt-4 animate-fade-in", className)} {...props} />;
+  return <div role="tabpanel" className={cn("mt-4 animate-fade-in", className)} {...props} />;
 }
 
 export { Tabs, TabsList, TabsTrigger, TabsContent };
