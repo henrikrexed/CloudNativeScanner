@@ -33,7 +33,7 @@ pgvector:
 pipelineService:
   replicaCount: 1
   image:
-    repository: ghcr.io/cloud-native-scanner/pipeline-service
+    repository: ghcr.io/henrikrexed/pipeline-service
     tag: ""          # defaults to .Chart.AppVersion
     pullPolicy: IfNotPresent
   resources:
@@ -52,7 +52,7 @@ pipelineService:
 webui:
   replicaCount: 1
   image:
-    repository: ghcr.io/cloud-native-scanner/webui-nodejs
+    repository: ghcr.io/henrikrexed/webui-nodejs
     tag: ""          # defaults to .Chart.AppVersion
     pullPolicy: IfNotPresent
   resources:
