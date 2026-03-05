@@ -15,11 +15,13 @@ graph LR
     YT[YouTube]
   end
 
-  subgraph Pipeline Service — Spring Boot
+  subgraph Pipeline Service
+    direction TB
     SCAN[Scan Stage]
     EXTRACT[Extract Stage]
     ANALYZE[Analyze Stage]
     GENERATE[Generate Stage]
+    API[REST API]
   end
 
   subgraph Storage
@@ -33,15 +35,14 @@ graph LR
   SO & RD & MD & DT & HN & YT --> SCAN
   SCAN --> PG
   PG --> EXTRACT --> ANALYZE --> GENERATE --> PG
-  PG --> NEXT
-  NEXT -->|API| SCAN
+  PG --> API --> NEXT
 ```
 
 **Key design decisions:**
 - **PostgreSQL job queue** (`SELECT ... FOR UPDATE SKIP LOCKED`) replaces Kafka — simpler ops, same guarantees
 - **4-stage pipeline**: Scan → Extract → Analyze → Generate, each stage driven by a Quartz scheduler polling the DB
-- **Pluggable scanners**: `SourceScanner` interface + `ScannerRegistry` + Java ServiceLoader SPI
-- **LLM abstraction**: `LLMService` interface supporting Ollama, OpenAI, Anthropic, Azure OpenAI, Gemini
+- **Pluggable scanners**: `SourceScanner` interface — built-in scanners via Spring `@Component`, external plugins via `ScannerRegistry` + ServiceLoader from `plugins/` directory
+- **LLM abstraction**: `LLMService` interface with task-specific models — supports Ollama, OpenAI, Anthropic (Claude)
 - **pgvector embeddings**: 1536-dim vectors for semantic dedup and RAG-enhanced content generation
 - **7-stage filter pipeline** (cheapest first): URL dedup → negative keywords → language → content length → quality → relevance → embedding dedup
 
@@ -53,9 +54,8 @@ graph LR
 # Start PostgreSQL + Ollama
 docker compose up -d
 
-# Build and run pipeline-service
-cd pipeline-service
-mvn spring-boot:run -Dspring-boot.run.profiles=local
+# Build and run pipeline-service (from project root)
+mvn spring-boot:run -pl pipeline-service -Dspring-boot.run.profiles=local
 
 # Build and run webui
 cd webui-nodejs
@@ -116,9 +116,12 @@ helm install scanner helm/cloud-native-scanner-v2/ \
 ├── shared/                  # JPA entities, repositories, shared services
 ├── pipeline-service/        # Spring Boot app — scan, extract, analyze, generate
 │   ├── src/main/java/com/topicscanner/
-│   │   ├── controller/      # REST API (Dashboard, Topics, Categories, Pipeline, Studio)
-│   │   ├── scanner/         # SourceScanner SPI + implementations
-│   │   ├── pipeline/        # JobQueueService, stage processors
+│   │   ├── api/             # REST controllers (Dashboard, Topics, Categories, Pipeline, Studio)
+│   │   ├── scanner/         # SourceScanner SPI + built-in implementations
+│   │   ├── extraction/      # Content extraction stage
+│   │   ├── analyzer/        # Classification and analysis stage
+│   │   ├── generator/       # Content generation stage
+│   │   ├── queue/           # PostgreSQL job queue
 │   │   ├── llm/             # LLMService interface + provider implementations
 │   │   └── filter/          # 7-stage filter chain
 │   └── Dockerfile

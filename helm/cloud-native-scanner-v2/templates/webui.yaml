@@ -18,17 +18,27 @@ spec:
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets: {{- toYaml . | nindent 8 }}
       {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 1001
       containers:
         - name: webui
           image: "{{ .Values.webui.image.repository }}:{{ include "webui.imageTag" . }}"
           imagePullPolicy: {{ .Values.webui.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsUser: 1001
           ports:
             - name: http
               containerPort: 3000
               protocol: TCP
           env:
-            - name: NEXT_PUBLIC_API_URL
+            # Server-side API URL (internal cluster DNS)
+            - name: API_SERVER_URL
               value: "http://{{ .Release.Name }}-pipeline-service:{{ .Values.pipelineService.service.port }}"
+            # Client-side API URL — empty means use relative URLs via Next.js rewrites
+            - name: NEXT_PUBLIC_API_URL
+              value: ""
           livenessProbe:
             httpGet:
               path: /

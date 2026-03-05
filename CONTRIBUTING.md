@@ -2,7 +2,7 @@
 
 ## How to Add a New Scanner
 
-Scanners discover topics from external sources. The system uses Java ServiceLoader SPI, so adding a new scanner requires no changes to existing code.
+Scanners discover topics from external sources. Built-in scanners are Spring `@Component` beans auto-discovered via classpath scanning. External plugins can be loaded from JARs in the `plugins/` directory via ServiceLoader.
 
 ### 1. Implement `SourceScanner`
 
@@ -11,13 +11,17 @@ Create a new class in `pipeline-service/src/main/java/com/topicscanner/scanner/`
 ```java
 package com.topicscanner.scanner;
 
+import org.springframework.stereotype.Component;
 import java.util.List;
+import java.util.Map;
+import java.time.LocalDateTime;
 
+@Component
 public class MySourceScanner implements SourceScanner {
 
     @Override
-    public String getType() {
-        return "my-source";  // unique identifier
+    public String getSourceType() {
+        return "my-source";  // unique identifier, used as FK in sources table
     }
 
     @Override
@@ -26,54 +30,51 @@ public class MySourceScanner implements SourceScanner {
     }
 
     @Override
-    public boolean isEnabled() {
-        // Read from config: scanners.my-source.enabled
-        return true;
-    }
+    public List<ScanResult> scan(ScanRequest request) {
+        // request.keywords()          — search terms
+        // request.negativeKeywords()   — exclusion terms
+        // request.scannerConfig()      — scanner-specific settings
+        // request.maxResults()         — max topics to return (default 25)
 
-    @Override
-    public List<ScanResult> scan(String keyword, int maxResults) {
-        // Fetch from your source API
-        // Return list of ScanResult(title, url, snippet, sourceDate)
-        return List.of();
+        // Fetch from your source API, return discovered topics:
+        return List.of(
+            new ScanResult(
+                "Topic Title",                    // title (required)
+                "https://example.com/topic",      // url (required)
+                getSourceType(),                  // sourceType (required)
+                Map.of("author", "Jane Doe"),     // metadata (optional extras)
+                LocalDateTime.now()               // sourceDate
+            )
+        );
     }
 }
 ```
 
-### 2. Register via ServiceLoader
+The `@Component` annotation registers it automatically. The `ScannerRegistry` will discover it on startup.
 
-Create or append to:
-```
-pipeline-service/src/main/resources/META-INF/services/com.topicscanner.scanner.SourceScanner
-```
+### 2. External plugin (alternative to `@Component`)
 
-Add one line:
+For scanners distributed as separate JARs, use ServiceLoader instead. Create:
 ```
-com.topicscanner.scanner.MySourceScanner
+META-INF/services/com.topicscanner.scanner.SourceScanner
 ```
+containing your fully-qualified class name. Place the JAR in the `plugins/` directory.
 
-### 3. Add configuration
+### 3. Add configuration (optional)
 
-In `pipeline-service/src/main/resources/application.yaml`:
+Scanner-specific config can be passed via `ScanRequest.scannerConfig()`. Add environment variables to `pipeline-service/src/main/resources/application.yml` under `topicscanner:`:
+
 ```yaml
-scanners:
-  my-source:
-    enabled: true
-    api-key: ${MY_SOURCE_API_KEY:}
-```
-
-Update `helm/cloud-native-scanner-v2/values.yaml`:
-```yaml
-scanners:
-  mySource:
-    enabled: false
-    apiKey: ""
+topicscanner:
+  scanner:
+    my-source:
+      api-key: ${MY_SOURCE_API_KEY:}
 ```
 
 ### 4. Write tests
 
 Create `pipeline-service/src/test/java/com/topicscanner/scanner/MySourceScannerTest.java` with at least:
-- Test that `getType()` returns the expected string
+- Test that `getSourceType()` returns the expected string
 - Test `scan()` with a mocked HTTP response (use `MockWebServer`)
 - Test that `scan()` handles errors gracefully (returns empty list, doesn't throw)
 
@@ -81,38 +82,19 @@ Create `pipeline-service/src/test/java/com/topicscanner/scanner/MySourceScannerT
 
 ## How to Add a New Content Format
 
-Content formats define how the Generate stage transforms analyzed topics into publication-ready content (blog post, YouTube script, LinkedIn post, etc.).
+Content formats define how the Generate stage transforms analyzed topics into publication-ready content. Current formats: `blog_post` (default), `youtube_script`, `linkedin_post`, `newsletter`.
 
-### 1. Add the format constant
+### 1. Add a case to `ContentGenerationService.buildSystemPrompt()`
 
-In `pipeline-service/src/main/java/com/topicscanner/pipeline/generate/`:
-
-```java
-// Add to OutputFormat enum or constants class
-public static final String MY_FORMAT = "my_format";
-```
-
-### 2. Add a prompt template
-
-In `pipeline-service/src/main/resources/prompts/` or via the `PromptManagementService`, add a system prompt for your format:
-
-```
-You are a technical writer creating a {format} about {topic}.
-Given the following analyzed content:
-{content}
-
-Write a {format} that is engaging, technically accurate, and ...
-```
-
-### 3. Register in ContentGenerationService
-
-The `ContentGenerationService` maps format strings to prompt templates. Add your format to the switch/map:
+In `pipeline-service/src/main/java/com/topicscanner/generator/ContentGenerationService.java`, add a new case to the switch statement (~line 283):
 
 ```java
-case "my_format" -> buildPrompt("my-format-system-prompt", topic, content);
+case "my_format" -> sb.append(
+    "Write a [your format description]. " +
+    "Include [specific instructions for this format].");
 ```
 
-### 4. Add UI option
+### 2. Add UI option
 
 In `webui-nodejs/app/topics/[id]/page.tsx`, add the option to the format select:
 
@@ -120,9 +102,9 @@ In `webui-nodejs/app/topics/[id]/page.tsx`, add the option to the format select:
 <option value="my_format">My Format</option>
 ```
 
-### 5. Write tests
+### 3. Write tests
 
-- Unit test that the prompt is correctly assembled for your format
+- Unit test that `buildSystemPrompt` returns the expected instructions for your format
 - Integration test that the full generate pipeline produces non-empty output
 
 ---
@@ -149,7 +131,7 @@ fix/issue-description
 
 ### Review checklist
 - [ ] Code follows existing patterns (JdbcTemplate for queries, `LLMService` for LLM calls)
-- [ ] New scanners implement `SourceScanner` and are registered via ServiceLoader
+- [ ] New scanners implement `SourceScanner` with `@Component` (or ServiceLoader for plugins)
 - [ ] New REST endpoints follow the `/api/` prefix convention
 - [ ] Frontend types are defined in `lib/v2api.ts`
 - [ ] No `any` types in TypeScript

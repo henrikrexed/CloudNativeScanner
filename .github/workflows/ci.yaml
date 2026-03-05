@@ -70,6 +70,7 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_API_URL: ""
+          SKIP_ENV_VALIDATION: "1"
 
   # ---- Docker images ----
   docker:

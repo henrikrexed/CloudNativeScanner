@@ -3,7 +3,11 @@ TopicScanner v2 has been deployed!
 {{- if .Values.ingress.enabled }}
 Access the UI at:
 {{- range .Values.ingress.hosts }}
+  {{- if $.Values.ingress.tls }}
   https://{{ .host }}
+  {{- else }}
+  http://{{ .host }}
+  {{- end }}
 {{- end }}
 {{- else }}
 To access the UI, run:

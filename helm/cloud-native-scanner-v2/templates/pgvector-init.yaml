@@ -10,23 +10,26 @@ metadata:
     "helm.sh/hook-weight": "1"
     "helm.sh/hook-delete-policy": hook-succeeded
 spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 300
+  ttlSecondsAfterFinished: 600
   template:
     spec:
       restartPolicy: OnFailure
       containers:
         - name: pgvector-init
-          image: bitnami/postgresql:16
+          image: bitnami/postgresql:16.4.0
           command:
             - sh
             - -c
             - |
-              until pg_isready -h {{ include "scanner.dbHost" . }} -U {{ .Values.postgresql.auth.username }}; do
+              until pg_isready -h {{ include "scanner.dbHost" . }} -U {{ include "scanner.dbUser" . }} -t 5; do
                 echo "Waiting for PostgreSQL..."
                 sleep 2
               done
               PGPASSWORD="$DB_PASSWORD" psql -h {{ include "scanner.dbHost" . }} \
-                -U {{ .Values.postgresql.auth.username }} \
-                -d {{ .Values.postgresql.auth.database }} \
+                -U {{ include "scanner.dbUser" . }} \
+                -d {{ include "scanner.dbName" . }} \
                 -c "CREATE EXTENSION IF NOT EXISTS vector;"
               echo "pgvector extension enabled"
           env:

@@ -6,67 +6,50 @@ metadata:
     {{- include "scanner.labels" . | nindent 4 }}
 data:
   application.yaml: |
-    server:
-      port: 8080
     spring:
       datasource:
-        url: jdbc:postgresql://{{ include "scanner.dbHost" . }}:5432/{{ .Values.postgresql.auth.database }}
-        username: {{ .Values.postgresql.auth.username }}
+        url: "jdbc:postgresql://{{ include "scanner.dbHost" . }}:{{ include "scanner.dbPort" . }}/{{ include "scanner.dbName" . }}"
+        username: {{ include "scanner.dbUser" . | quote }}
+        driver-class-name: org.postgresql.Driver
       jpa:
         hibernate:
           ddl-auto: validate
+        open-in-view: false
       flyway:
         enabled: true
+        baseline-on-migrate: true
 
-    # LLM
-    llm:
-      provider: {{ .Values.llm.provider }}
-      model: {{ .Values.llm.model }}
-      {{- if eq .Values.llm.provider "ollama" }}
-      ollama:
-        url: {{ .Values.llm.ollama.url }}
-      {{- end }}
-      {{- if .Values.llm.fallback.enabled }}
-      fallback:
-        provider: {{ .Values.llm.fallback.provider }}
-        model: {{ .Values.llm.fallback.model }}
-      {{- end }}
+    server:
+      port: 8080
 
-    # pgvector
-    pgvector:
-      enabled: {{ .Values.pgvector.enabled }}
-      dimensions: {{ .Values.pgvector.dimensions }}
-
-    # Scanners
-    scanners:
-      reddit:
-        enabled: {{ .Values.scanners.reddit.enabled }}
-        user-agent: {{ .Values.scanners.reddit.userAgent | quote }}
-      stackoverflow:
-        enabled: {{ .Values.scanners.stackoverflow.enabled }}
-      medium:
-        enabled: {{ .Values.scanners.medium.enabled }}
-      devto:
-        enabled: {{ .Values.scanners.devto.enabled }}
-      hashnode:
-        enabled: {{ .Values.scanners.hashnode.enabled }}
-      youtube:
-        enabled: {{ .Values.scanners.youtube.enabled }}
+    # Pipeline
+    topicscanner:
+      scanner:
+        plugins-dir: ${SCANNER_PLUGINS_DIR:plugins}
+      pipeline:
+        poll-interval-seconds: 30
+        relevance-threshold: 0.7
+        quality-threshold: 0.5
+      llm:
+        primary: {{ .Values.llm.provider | quote }}
+        {{- if .Values.llm.fallback.enabled }}
+        cloud-fallback: {{ .Values.llm.fallback.provider | quote }}
+        {{- end }}
+        ollama:
+          url: {{ .Values.llm.ollama.url | quote }}
+        {{- if and (ne .Values.llm.provider "ollama") .Values.llm.apiKey }}
+        openai:
+          api-key: ${OPENAI_API_KEY:}
+        claude:
+          api-key: ${ANTHROPIC_API_KEY:}
+        {{- end }}
 
     # Actuator
     management:
       endpoints:
         web:
           exposure:
-            include: health,info,prometheus
+            include: health,info,metrics
       endpoint:
         health:
-          show-details: always
-
-    {{- if .Values.observability.otel.enabled }}
-    # OpenTelemetry
-    otel:
-      exporter:
-        otlp:
-          endpoint: {{ .Values.observability.otel.endpoint }}
-    {{- end }}
+          show-details: when-authorized

@@ -20,24 +20,36 @@ spec:
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets: {{- toYaml . | nindent 8 }}
       {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 1001
       containers:
         - name: pipeline-service
           image: "{{ .Values.pipelineService.image.repository }}:{{ include "pipeline.imageTag" . }}"
           imagePullPolicy: {{ .Values.pipelineService.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            runAsUser: 1001
           ports:
             - name: http
               containerPort: 8080
               protocol: TCP
           env:
-            - name: SPRING_CONFIG_ADDITIONAL-LOCATION
-              value: /config/application.yaml
+            - name: SPRING_CONFIG_ADDITIONALLOCATION
+              value: file:/config/application.yaml
             - name: SPRING_DATASOURCE_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ include "scanner.dbSecretName" . }}
                   key: password
             {{- if and .Values.llm.apiKey (not (eq .Values.llm.provider "ollama")) }}
-            - name: LLM_API_KEY
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "scanner.llmSecretName" . }}
+                  key: api-key
+            - name: ANTHROPIC_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ include "scanner.llmSecretName" . }}
@@ -63,7 +75,7 @@ spec:
                   key: reddit-client-secret
             {{- end }}
             {{- if and .Values.scanners.youtube.enabled .Values.scanners.youtube.apiKey }}
-            - name: SCANNERS_YOUTUBE_API_KEY
+            - name: YOUTUBE_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ .Release.Name }}-scanner-credentials
@@ -76,17 +88,24 @@ spec:
             - name: config
               mountPath: /config
               readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 20
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: http
-            initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
               port: http
-            initialDelaySeconds: 15
             periodSeconds: 5
           resources:
             {{- toYaml .Values.pipelineService.resources | nindent 12 }}
@@ -94,6 +113,8 @@ spec:
         - name: config
           configMap:
             name: {{ .Release.Name }}-pipeline-config
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

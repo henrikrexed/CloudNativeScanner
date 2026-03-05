@@ -24,6 +24,15 @@ postgresql:
         enable-pgvector.sql: |
           CREATE EXTENSION IF NOT EXISTS vector;
 
+# -- External Database (when postgresql.enabled=false) ------
+externalDatabase:
+  host: ""
+  port: 5432
+  database: topicscanner
+  username: topicscanner
+  password: ""
+  existingSecret: ""
+
 # pgvector toggle — controls whether the pipeline stores embeddings
 pgvector:
   enabled: true
