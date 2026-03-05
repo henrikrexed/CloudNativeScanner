@@ -383,7 +383,7 @@
                     <format>ALL</format>
                     <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
                     <failOnError>${dependency-check.failOnError}</failOnError>
-n                    <ossIndexAnalyzerEnabled>false</ossIndexAnalyzerEnabled>
+                    <ossIndexAnalyzerEnabled>false</ossIndexAnalyzerEnabled>
                 </configuration>
                 <executions>
                     <execution>
