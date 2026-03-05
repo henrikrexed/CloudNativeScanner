@@ -16,9 +16,6 @@
     <modules>
         <module>shared</module>
         <module>pipeline-service</module>
-        <module>topic-scanner</module>
-        <module>topic-analyzer</module>
-        <module>webui-api</module>
     </modules>
 
     <properties>
