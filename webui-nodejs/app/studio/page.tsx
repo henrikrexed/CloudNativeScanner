@@ -58,7 +58,7 @@ export default function StudioPageWrapper() {
 
 function ContentStudioPage() {
   const searchParams = useSearchParams();
-  const generatedHighlight = searchParams.get("generated");
+  const generatedHighlight = searchParams?.get("generated");
 
   const [tab, setTab] = useState("content");
   const [userContent, setUserContent] = useState<UserContent[]>([]);

@@ -30,7 +30,7 @@ import {
 export default function TopicDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const id = Number(params.id);
+  const id = Number(params?.id);
 
   const [topic, setTopic] = useState<TopicDetail | null>(null);
   const [relatedTopics, setRelatedTopics] = useState<TopicSummary[]>([]);
