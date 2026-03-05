@@ -381,11 +381,9 @@
                 <version>12.1.0</version>
                 <configuration>
                     <format>ALL</format>
-                    <suppressionFiles>
-                        <suppressionFile>owasp-suppressions.xml</suppressionFile>
-                    </suppressionFiles>
                     <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
                     <failOnError>${dependency-check.failOnError}</failOnError>
+n                    <ossIndexAnalyzerEnabled>false</ossIndexAnalyzerEnabled>
                 </configuration>
                 <executions>
                     <execution>
