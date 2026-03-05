@@ -35,6 +35,11 @@ topicscanner:
     dedup-similarity-threshold: ${PIPELINE_DEDUP_THRESHOLD:0.95}
     stale-job-minutes: ${PIPELINE_STALE_JOB_MINUTES:10}
     max-results-per-scan: ${PIPELINE_MAX_RESULTS_PER_SCAN:25}
+  extraction:
+    youtube:
+      max-duration-minutes: ${EXTRACTION_YOUTUBE_MAX_DURATION:90}
+    whisper:
+      url: ${WHISPER_SERVICE_URL:}
   llm:
     primary: ${LLM_PRIMARY:ollama}
     cloud-fallback: ${LLM_CLOUD_FALLBACK:openai}
