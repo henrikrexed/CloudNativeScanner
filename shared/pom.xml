@@ -8,7 +8,7 @@
     <parent>
         <groupId>com.cncf</groupId>
         <artifactId>cloud-native-scanner</artifactId>
-        <version>1.0.0</version>
+        <version>1.0.3</version>
     </parent>
 
     <artifactId>shared</artifactId>
@@ -36,6 +36,36 @@
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
+        </dependency>
+
+        <!-- OpenTelemetry -->
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-context</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-sdk</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-semconv</artifactId>
+            <version>1.21.0-alpha</version>
+        </dependency>
+        
+        <!-- Spring AI for LLM tracing -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-core</artifactId>
+            <version>1.0.0-M3</version>
         </dependency>
 
         <!-- Testing -->
@@ -71,5 +101,6 @@
         </dependency>
     </dependencies>
 </project>
+
 
 

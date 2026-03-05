@@ -1,11 +1,13 @@
 package com.cncf.scanner.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "topic_themes")
 @IdClass(TopicThemeId.class)
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "topic"})
 public class TopicTheme {
     
     @Id
@@ -16,10 +18,11 @@ public class TopicTheme {
     @Id
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "theme_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "parentTheme", "subThemes", "topicThemes"})
     private Theme theme;
     
     @Column(name = "confidence_score", precision = 3, scale = 2)
-    private Double confidenceScore = 0.0;
+    private java.math.BigDecimal confidenceScore = java.math.BigDecimal.ZERO;
     
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -32,7 +35,7 @@ public class TopicTheme {
     // Constructors
     public TopicTheme() {}
     
-    public TopicTheme(Topic topic, Theme theme, Double confidenceScore) {
+    public TopicTheme(Topic topic, Theme theme, java.math.BigDecimal confidenceScore) {
         this.topic = topic;
         this.theme = theme;
         this.confidenceScore = confidenceScore;
@@ -55,11 +58,11 @@ public class TopicTheme {
         this.theme = theme;
     }
     
-    public Double getConfidenceScore() {
+    public java.math.BigDecimal getConfidenceScore() {
         return confidenceScore;
     }
     
-    public void setConfidenceScore(Double confidenceScore) {
+    public void setConfidenceScore(java.math.BigDecimal confidenceScore) {
         this.confidenceScore = confidenceScore;
     }
     

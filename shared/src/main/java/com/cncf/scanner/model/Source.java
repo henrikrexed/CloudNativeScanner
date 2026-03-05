@@ -1,11 +1,13 @@
 package com.cncf.scanner.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.Set;
 
 @Entity
 @Table(name = "sources")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "topics", "scanHistories"})
 public class Source {
     
     @Id

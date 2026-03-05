@@ -20,19 +20,22 @@ public interface ScanHistoryRepository extends JpaRepository<ScanHistory, Long> 
     /**
      * Find the last successful scan for a source
      */
-    @Query("SELECT sh FROM ScanHistory sh WHERE sh.source.id = :sourceId AND sh.status = 'COMPLETED' ORDER BY sh.completedAt DESC")
+    @Query(value = "SELECT sh FROM ScanHistory sh WHERE sh.source.id = :sourceId AND sh.status = 'COMPLETED' ORDER BY sh.completedAt DESC",
+           countQuery = "SELECT COUNT(sh) FROM ScanHistory sh WHERE sh.source.id = :sourceId AND sh.status = 'COMPLETED'")
     List<ScanHistory> findLastSuccessfulScan(@Param("sourceId") Long sourceId);
     
     /**
      * Find running scans
      */
-    @Query("SELECT sh FROM ScanHistory sh WHERE sh.status = 'RUNNING'")
+    @Query(value = "SELECT sh FROM ScanHistory sh WHERE sh.status = 'RUNNING'",
+           countQuery = "SELECT COUNT(sh) FROM ScanHistory sh WHERE sh.status = 'RUNNING'")
     List<ScanHistory> findRunningScans();
     
     /**
      * Find scans within a time range
      */
-    @Query("SELECT sh FROM ScanHistory sh WHERE sh.startedAt BETWEEN :startTime AND :endTime")
+    @Query(value = "SELECT sh FROM ScanHistory sh WHERE sh.startedAt BETWEEN :startTime AND :endTime",
+           countQuery = "SELECT COUNT(sh) FROM ScanHistory sh WHERE sh.startedAt BETWEEN :startTime AND :endTime")
     List<ScanHistory> findScansInTimeRange(@Param("startTime") LocalDateTime startTime, 
                                           @Param("endTime") LocalDateTime endTime);
 }

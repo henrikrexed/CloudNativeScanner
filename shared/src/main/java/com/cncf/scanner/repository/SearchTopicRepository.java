@@ -25,7 +25,9 @@ public interface SearchTopicRepository extends JpaRepository<SearchTopic, Long> 
     /**
      * Find search topics that need searching based on frequency
      */
-    @Query("SELECT st FROM SearchTopic st WHERE st.source.id = :sourceId AND st.isActive = true AND " +
+    @Query(value = "SELECT st FROM SearchTopic st WHERE st.source.id = :sourceId AND st.isActive = true AND " +
+           "(st.lastSearchedAt IS NULL OR st.lastSearchedAt < :cutoffTime)",
+           countQuery = "SELECT COUNT(st) FROM SearchTopic st WHERE st.source.id = :sourceId AND st.isActive = true AND " +
            "(st.lastSearchedAt IS NULL OR st.lastSearchedAt < :cutoffTime)")
     List<SearchTopic> findSearchTopicsNeedingSearch(@Param("sourceId") Long sourceId, @Param("cutoffTime") LocalDateTime cutoffTime);
     
@@ -37,7 +39,8 @@ public interface SearchTopicRepository extends JpaRepository<SearchTopic, Long> 
     /**
      * Find all active search topics ordered by priority
      */
-    @Query("SELECT st FROM SearchTopic st WHERE st.isActive = true ORDER BY st.priority ASC, st.keyword ASC")
+    @Query(value = "SELECT st FROM SearchTopic st WHERE st.isActive = true ORDER BY st.priority ASC, st.keyword ASC",
+           countQuery = "SELECT COUNT(st) FROM SearchTopic st WHERE st.isActive = true")
     List<SearchTopic> findAllActiveOrderByPriority();
     
     /**
@@ -50,5 +53,6 @@ public interface SearchTopicRepository extends JpaRepository<SearchTopic, Long> 
      */
     long countBySourceIdAndIsActiveTrue(Long sourceId);
 }
+
 
 

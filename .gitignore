@@ -43,3 +43,6 @@ Thumbs.db
 
 # Temporary/generated docs (not project source)
 *.md.bak
+target/
+shared/target/
+pipeline-service/target/
