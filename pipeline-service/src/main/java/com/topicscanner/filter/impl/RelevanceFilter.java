@@ -40,6 +40,10 @@ public class RelevanceFilter implements TopicFilter {
 
     @Override
     public FilterResult apply(TopicContext context) {
+        if (context.getExtractedContent() == null || context.getExtractedContent().isBlank()) {
+            return FilterResult.fail(getName(), "No content to score relevance");
+        }
+
         String systemPrompt = """
                 You are a topic relevance scorer. Score how relevant the given content is
                 to the specified category and keywords.

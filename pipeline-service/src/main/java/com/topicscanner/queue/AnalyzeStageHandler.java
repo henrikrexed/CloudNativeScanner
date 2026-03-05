@@ -10,6 +10,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.util.List;
 import java.util.Map;
 
@@ -22,6 +24,7 @@ import java.util.Map;
 public class AnalyzeStageHandler implements StageHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(AnalyzeStageHandler.class);
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final FilterPipeline filterPipeline;
     private final JdbcTemplate jdbcTemplate;
@@ -147,8 +150,7 @@ public class AnalyzeStageHandler implements StageHandler {
             return List.of();
         }
         try {
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            return mapper.readValue(json, List.class);
+            return MAPPER.readValue(json, List.class);
         } catch (Exception e) {
             return List.of();
         }

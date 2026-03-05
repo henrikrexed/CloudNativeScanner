@@ -6,7 +6,6 @@ import com.topicscanner.filter.TopicFilter;
 import org.springframework.stereotype.Component;
 
 import java.util.Set;
-import java.util.regex.Pattern;
 
 /**
  * Filter 3: Rejects topics not in English (heuristic-based).
@@ -27,8 +26,6 @@ public class LanguageFilter implements TopicFilter {
             "from", "as", "be", "was", "an", "have", "has",
             "not", "but", "or", "can", "will", "how", "what"
     );
-
-    private static final Pattern WORD_PATTERN = Pattern.compile("\\b[a-zA-Z]+\\b");
 
     @Override
     public String getName() {

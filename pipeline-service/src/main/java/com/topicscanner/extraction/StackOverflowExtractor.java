@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.Duration;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -23,6 +24,7 @@ public class StackOverflowExtractor {
     private static final String API_BASE = "https://api.stackexchange.com/2.3";
     private static final Pattern QUESTION_ID_PATTERN = Pattern.compile("/questions/(\\d+)");
     private static final int MAX_ANSWERS = 5;
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
 
     private final WebClient webClient;
 
@@ -57,7 +59,7 @@ public class StackOverflowExtractor {
                             .build(questionId))
                     .retrieve()
                     .bodyToMono(String.class)
-                    .block();
+                    .block(REQUEST_TIMEOUT);
 
             if (questionBody == null) {
                 return Optional.empty();
@@ -88,7 +90,7 @@ public class StackOverflowExtractor {
                             .build(questionId))
                     .retrieve()
                     .bodyToMono(String.class)
-                    .block();
+                    .block(REQUEST_TIMEOUT);
 
             if (answersBody != null) {
                 JsonNode answersRoot = MAPPER.readTree(answersBody);

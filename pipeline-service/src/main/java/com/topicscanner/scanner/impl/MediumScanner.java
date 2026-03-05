@@ -2,6 +2,7 @@ package com.topicscanner.scanner.impl;
 
 import com.topicscanner.scanner.ScanRequest;
 import com.topicscanner.scanner.ScanResult;
+import com.topicscanner.scanner.ScannerUtils;
 import com.topicscanner.scanner.SourceScanner;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -12,7 +13,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -29,13 +32,14 @@ public class MediumScanner implements SourceScanner {
 
     private static final Logger logger = LoggerFactory.getLogger(MediumScanner.class);
     private static final String RSS_BASE_URL = "https://medium.com/feed/tag";
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
     private static final long REQUEST_DELAY_MS = 1000;
 
     private final WebClient webClient;
 
     public MediumScanner(WebClient.Builder webClientBuilder) {
         this.webClient = webClientBuilder.clone()
-                .defaultHeader("User-Agent", "TopicScanner/2.0")
+                .defaultHeader("User-Agent", "TopicScanner/2.0 (DevRel Intelligence)")
                 .build();
     }
 
@@ -59,15 +63,11 @@ public class MediumScanner implements SourceScanner {
         }
 
         for (String keyword : request.keywords()) {
-            if (results.size() >= request.maxResults()) {
-                break;
-            }
+            if (results.size() >= request.maxResults()) break;
 
             try {
                 String tag = keyword.toLowerCase().replaceAll("[^a-z0-9-]", "-");
-                if (tag.isBlank()) {
-                    continue;
-                }
+                if (tag.isBlank()) continue;
 
                 List<ScanResult> batch = fetchRssFeed(tag, request);
                 results.addAll(batch);
@@ -83,9 +83,7 @@ public class MediumScanner implements SourceScanner {
             }
         }
 
-        return results.stream()
-                .limit(request.maxResults())
-                .toList();
+        return results.stream().limit(request.maxResults()).toList();
     }
 
     private List<ScanResult> fetchRssFeed(String tag, ScanRequest request) {
@@ -95,11 +93,9 @@ public class MediumScanner implements SourceScanner {
                 .uri(feedUrl)
                 .retrieve()
                 .bodyToMono(String.class)
-                .block();
+                .block(REQUEST_TIMEOUT);
 
-        if (body == null) {
-            return List.of();
-        }
+        if (body == null) return List.of();
 
         List<ScanResult> results = new ArrayList<>();
         try {
@@ -109,45 +105,24 @@ public class MediumScanner implements SourceScanner {
             for (Element item : items) {
                 String title = item.select("title").text();
                 String link = item.select("link").text();
-                if (link.isBlank()) {
-                    // Some RSS feeds put link in guid
-                    link = item.select("guid").text();
-                }
+                if (link.isBlank()) link = item.select("guid").text();
+
                 String pubDate = item.select("pubDate").text();
                 String author = item.select("dc|creator").text();
-                if (author.isBlank()) {
-                    author = item.select("creator").text();
-                }
+                if (author.isBlank()) author = item.select("creator").text();
 
-                if (title.isBlank() || link.isBlank()) {
-                    continue;
-                }
+                if (title.isBlank() || link.isBlank()) continue;
 
-                // Strip query parameters from Medium URLs
-                if (link.contains("?")) {
-                    link = link.substring(0, link.indexOf("?"));
-                }
-
-                if (matchesNegativeKeywords(title, request.negativeKeywords())) {
-                    continue;
-                }
+                // Strip query parameters
+                if (link.contains("?")) link = link.substring(0, link.indexOf("?"));
+                if (ScannerUtils.matchesNegativeKeywords(title, request.negativeKeywords())) continue;
 
                 LocalDateTime sourceDate = parseRssDate(pubDate);
-
-                // Extract external ID from URL
                 String externalId = extractMediumId(link);
 
-                results.add(new ScanResult(
-                        title,
-                        link,
-                        getSourceType(),
-                        Map.of(
-                                "externalId", externalId,
-                                "author", author,
-                                "tag", tag
-                        ),
-                        sourceDate
-                ));
+                results.add(new ScanResult(title, link, getSourceType(),
+                        Map.of("externalId", externalId, "author", author, "tag", tag),
+                        sourceDate));
             }
         } catch (Exception e) {
             logger.warn("Failed to parse Medium RSS feed for tag '{}': {}", tag, e.getMessage());
@@ -156,7 +131,6 @@ public class MediumScanner implements SourceScanner {
     }
 
     private String extractMediumId(String url) {
-        // Medium URLs end with a hash ID: /title-abc123def
         int lastDash = url.lastIndexOf('-');
         if (lastDash > 0 && lastDash < url.length() - 1) {
             return url.substring(lastDash + 1);
@@ -165,20 +139,12 @@ public class MediumScanner implements SourceScanner {
     }
 
     private LocalDateTime parseRssDate(String dateStr) {
-        if (dateStr == null || dateStr.isBlank()) {
-            return null;
-        }
+        if (dateStr == null || dateStr.isBlank()) return null;
         try {
             ZonedDateTime zdt = ZonedDateTime.parse(dateStr, DateTimeFormatter.RFC_1123_DATE_TIME);
-            return zdt.toLocalDateTime();
+            return zdt.withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
         } catch (DateTimeParseException e) {
             return null;
         }
-    }
-
-    private boolean matchesNegativeKeywords(String text, List<String> negativeKeywords) {
-        String lower = text.toLowerCase();
-        return negativeKeywords.stream()
-                .anyMatch(kw -> lower.contains(kw.toLowerCase()));
     }
 }

@@ -14,10 +14,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -33,18 +31,18 @@ public class ScanOrchestrator {
     private final ScannerRegistry scannerRegistry;
     private final PipelineOrchestrator pipelineOrchestrator;
     private final JdbcTemplate jdbcTemplate;
-
-    @Value("${topicscanner.pipeline.max-results-per-scan:25}")
-    private int maxResultsPerScan;
+    private final int maxResultsPerScan;
 
     public ScanOrchestrator(CategoryService categoryService,
                              ScannerRegistry scannerRegistry,
                              PipelineOrchestrator pipelineOrchestrator,
-                             JdbcTemplate jdbcTemplate) {
+                             JdbcTemplate jdbcTemplate,
+                             @Value("${topicscanner.pipeline.max-results-per-scan:25}") int maxResultsPerScan) {
         this.categoryService = categoryService;
         this.scannerRegistry = scannerRegistry;
         this.pipelineOrchestrator = pipelineOrchestrator;
         this.jdbcTemplate = jdbcTemplate;
+        this.maxResultsPerScan = maxResultsPerScan;
     }
 
     /**
@@ -65,7 +63,8 @@ public class ScanOrchestrator {
             } catch (Exception e) {
                 logger.error("Failed to scan category '{}': {}", category.getName(), e.getMessage(), e);
             } finally {
-                MDC.clear();
+                MDC.remove("categoryId");
+                MDC.remove("category");
             }
         }
 
@@ -75,9 +74,9 @@ public class ScanOrchestrator {
 
     /**
      * Scan a single category across all its configured sources.
-     * Returns the number of new topics discovered.
+     * No @Transactional here — avoids holding a DB connection during external HTTP calls.
+     * Each topic insert is atomic via upsert.
      */
-    @Transactional
     public int scanCategory(Category category) {
         List<String> sources = category.getSourcesList();
         List<String> keywords = category.getKeywordsList();
@@ -129,39 +128,33 @@ public class ScanOrchestrator {
     }
 
     /**
-     * Insert a topic if it doesn't already exist (by source + external_id).
-     * Uses the URL as external_id if no explicit external ID is available.
+     * Atomically insert a topic if it doesn't already exist (by source + external_id).
+     * Uses INSERT ... ON CONFLICT DO NOTHING to avoid TOCTOU race conditions.
      * Returns the topic ID if newly inserted, null if it already existed.
      */
     private Long persistTopicIfNew(ScanResult result, Category category) {
         String externalId = deriveExternalId(result);
 
         // Look up source ID by scanner type name
-        Long sourceId = jdbcTemplate.queryForObject(
+        List<Long> sourceIds = jdbcTemplate.queryForList(
                 "SELECT id FROM sources WHERE LOWER(name) = LOWER(?)",
                 Long.class, result.sourceType());
 
-        if (sourceId == null) {
+        if (sourceIds.isEmpty()) {
             logger.warn("Source '{}' not found in DB, skipping topic '{}'",
                     result.sourceType(), result.title());
             return null;
         }
 
-        // Check for existing topic (dedup by source + external_id)
-        Integer exists = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM topics WHERE source_id = ? AND external_id = ?",
-                Integer.class, sourceId, externalId);
+        Long sourceId = sourceIds.get(0);
 
-        if (exists != null && exists > 0) {
-            return null; // already exists
-        }
-
-        // Insert new topic
-        return jdbcTemplate.queryForObject(
+        // Atomic upsert — avoids TOCTOU race between concurrent scanners
+        List<Long> inserted = jdbcTemplate.queryForList(
                 """
                 INSERT INTO topics (source_id, category_id, external_id, title, url,
                                     pipeline_stage, source_date, collected_at, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, 'scanned', ?, NOW(), NOW(), NOW())
+                ON CONFLICT (source_id, external_id) DO NOTHING
                 RETURNING id
                 """,
                 Long.class,
@@ -172,16 +165,19 @@ public class ScanOrchestrator {
                 result.url(),
                 result.sourceDate() != null ? Timestamp.valueOf(result.sourceDate()) : null
         );
+
+        return inserted.isEmpty() ? null : inserted.get(0);
     }
 
     /**
      * Derive a stable external ID from the scan result.
-     * Uses URL as the external ID — it's unique per source.
      */
     private String deriveExternalId(ScanResult result) {
-        Object id = result.metadata().get("externalId");
-        if (id != null && !id.toString().isBlank()) {
-            return id.toString();
+        if (result.metadata() != null) {
+            Object id = result.metadata().get("externalId");
+            if (id != null && !id.toString().isBlank()) {
+                return id.toString();
+            }
         }
         return result.url();
     }

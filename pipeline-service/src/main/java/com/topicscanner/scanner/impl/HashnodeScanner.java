@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.topicscanner.scanner.ScanRequest;
 import com.topicscanner.scanner.ScanResult;
+import com.topicscanner.scanner.ScannerUtils;
 import com.topicscanner.scanner.SourceScanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,9 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +26,7 @@ public class HashnodeScanner implements SourceScanner {
     private static final Logger logger = LoggerFactory.getLogger(HashnodeScanner.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String GRAPHQL_URL = "https://gql.hashnode.com";
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
 
     private final WebClient webClient;
 
@@ -34,7 +34,8 @@ public class HashnodeScanner implements SourceScanner {
                            @Value("${HASHNODE_API_TOKEN:}") String apiToken) {
         WebClient.Builder builder = webClientBuilder.clone()
                 .baseUrl(GRAPHQL_URL)
-                .defaultHeader("Content-Type", "application/json");
+                .defaultHeader("Content-Type", "application/json")
+                .defaultHeader("User-Agent", "TopicScanner/2.0 (DevRel Intelligence)");
 
         if (apiToken != null && !apiToken.isBlank()) {
             builder.defaultHeader("Authorization", apiToken);
@@ -71,25 +72,21 @@ public class HashnodeScanner implements SourceScanner {
                     .bodyValue(requestBody)
                     .retrieve()
                     .bodyToMono(String.class)
-                    .block();
+                    .block(REQUEST_TIMEOUT);
 
             if (body == null) {
                 return results;
             }
 
             JsonNode root = MAPPER.readTree(body);
-            JsonNode edges = root.path("data").path("searchPostsOfPublication").path("edges");
 
-            // Hashnode API may return different structures, try alternate path
-            if (edges.isMissingNode() || !edges.isArray()) {
+            // Try multiple response paths as Hashnode API structure varies
+            JsonNode edges = root.path("data").path("searchPostsOfPublication").path("edges");
+            if (!edges.isArray() || edges.isEmpty()) {
                 edges = root.path("data").path("feed").path("edges");
             }
-            if (edges.isMissingNode() || !edges.isArray()) {
-                // Try tag-based search response
-                JsonNode posts = root.path("data").path("tagPosts").path("edges");
-                if (posts.isArray()) {
-                    edges = posts;
-                }
+            if (!edges.isArray() || edges.isEmpty()) {
+                edges = root.path("data").path("tagPosts").path("edges");
             }
 
             if (!edges.isArray()) {
@@ -103,7 +100,6 @@ public class HashnodeScanner implements SourceScanner {
                 String url = node.path("url").asText("");
 
                 if (url.isBlank()) {
-                    // Build URL from slug and publication
                     String slug = node.path("slug").asText("");
                     String publication = node.path("publication").path("url").asText("");
                     if (!slug.isBlank() && !publication.isBlank()) {
@@ -111,40 +107,35 @@ public class HashnodeScanner implements SourceScanner {
                     }
                 }
 
-                if (title.isBlank() || url.isBlank()) {
-                    continue;
+                if (title.isBlank() || url.isBlank()) continue;
+                if (ScannerUtils.matchesNegativeKeywords(title, request.negativeKeywords())) continue;
+
+                var sourceDate = ScannerUtils.parseIsoDate(node.path("publishedAt").asText(""));
+
+                String brief = node.path("brief").asText("");
+                if (brief.length() > 200) {
+                    brief = brief.substring(0, 200);
                 }
 
-                if (matchesNegativeKeywords(title, request.negativeKeywords())) {
-                    continue;
-                }
-
-                LocalDateTime sourceDate = parseDate(node.path("publishedAt").asText(""));
-
-                results.add(new ScanResult(
-                        title,
-                        url,
-                        getSourceType(),
+                results.add(new ScanResult(title, url, getSourceType(),
                         Map.of(
                                 "externalId", node.path("id").asText(""),
-                                "brief", node.path("brief").asText("").substring(0,
-                                        Math.min(node.path("brief").asText("").length(), 200)),
+                                "brief", brief,
                                 "reactionCount", node.path("reactionCount").asInt(0),
                                 "replyCount", node.path("replyCount").asInt(0)
                         ),
-                        sourceDate
-                ));
+                        sourceDate));
             }
         } catch (Exception e) {
             logger.warn("Hashnode scan failed: {}", e.getMessage());
         }
 
-        return results.stream()
-                .limit(request.maxResults())
-                .toList();
+        return results.stream().limit(request.maxResults()).toList();
     }
 
     private String buildSearchQuery(String searchTerm, int first) {
+        // Escape double quotes in search term for GraphQL
+        String escapedTerm = searchTerm.replace("\"", "\\\"");
         return """
                 {
                   feed(first: %d, filter: { type: RELEVANT }) {
@@ -166,22 +157,5 @@ public class HashnodeScanner implements SourceScanner {
                   }
                 }
                 """.formatted(first);
-    }
-
-    private LocalDateTime parseDate(String dateStr) {
-        if (dateStr == null || dateStr.isBlank()) {
-            return null;
-        }
-        try {
-            return LocalDateTime.parse(dateStr, DateTimeFormatter.ISO_DATE_TIME);
-        } catch (DateTimeParseException e) {
-            return null;
-        }
-    }
-
-    private boolean matchesNegativeKeywords(String text, List<String> negativeKeywords) {
-        String lower = text.toLowerCase();
-        return negativeKeywords.stream()
-                .anyMatch(kw -> lower.contains(kw.toLowerCase()));
     }
 }

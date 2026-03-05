@@ -44,10 +44,16 @@ public class ExtractStageHandler implements StageHandler {
         logger.info("Extracting content for topic {}", topicId);
 
         // Fetch URL and source type for this topic
-        var topicInfo = jdbcTemplate.queryForMap(
+        var rows = jdbcTemplate.queryForList(
                 "SELECT url, source_type FROM topics t JOIN sources s ON t.source_id = s.id WHERE t.id = ?",
                 topicId);
 
+        if (rows.isEmpty()) {
+            logger.warn("Topic {} not found, skipping extraction", topicId);
+            return;
+        }
+
+        var topicInfo = rows.get(0);
         String url = (String) topicInfo.get("url");
         String sourceType = (String) topicInfo.get("source_type");
 

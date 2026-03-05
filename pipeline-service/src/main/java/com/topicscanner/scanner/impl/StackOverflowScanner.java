@@ -4,12 +4,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.topicscanner.scanner.ScanRequest;
 import com.topicscanner.scanner.ScanResult;
+import com.topicscanner.scanner.ScannerUtils;
 import com.topicscanner.scanner.SourceScanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -26,6 +28,7 @@ public class StackOverflowScanner implements SourceScanner {
     private static final Logger logger = LoggerFactory.getLogger(StackOverflowScanner.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String BASE_URL = "https://api.stackexchange.com/2.3";
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
     private static final long REQUEST_DELAY_MS = 2000;
 
     private final WebClient webClient;
@@ -33,6 +36,7 @@ public class StackOverflowScanner implements SourceScanner {
     public StackOverflowScanner(WebClient.Builder webClientBuilder) {
         this.webClient = webClientBuilder.clone()
                 .baseUrl(BASE_URL)
+                .defaultHeader("User-Agent", "TopicScanner/2.0 (DevRel Intelligence)")
                 .build();
     }
 
@@ -62,13 +66,14 @@ public class StackOverflowScanner implements SourceScanner {
 
         while (hasMore && page <= maxPages && results.size() < request.maxResults()) {
             try {
-                List<ScanResult> batch = fetchPage(query, page, request);
-                if (batch.isEmpty()) {
+                PageResult pageResult = fetchPage(query, page, request);
+                if (pageResult.results().isEmpty()) {
                     break;
                 }
-                results.addAll(batch);
+                results.addAll(pageResult.results());
+                hasMore = pageResult.hasMore();
                 page++;
-                if (page <= maxPages) {
+                if (hasMore && page <= maxPages) {
                     Thread.sleep(REQUEST_DELAY_MS);
                 }
             } catch (InterruptedException e) {
@@ -76,7 +81,7 @@ public class StackOverflowScanner implements SourceScanner {
                 break;
             } catch (Exception e) {
                 logger.warn("StackOverflow scan failed on page {}: {}", page, e.getMessage());
-                hasMore = false;
+                break;
             }
         }
 
@@ -85,7 +90,9 @@ public class StackOverflowScanner implements SourceScanner {
                 .toList();
     }
 
-    private List<ScanResult> fetchPage(String query, int page, ScanRequest request) {
+    private record PageResult(List<ScanResult> results, boolean hasMore) {}
+
+    private PageResult fetchPage(String query, int page, ScanRequest request) {
         String body = webClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/search")
@@ -99,15 +106,17 @@ public class StackOverflowScanner implements SourceScanner {
                         .build())
                 .retrieve()
                 .bodyToMono(String.class)
-                .block();
+                .block(REQUEST_TIMEOUT);
 
         if (body == null) {
-            return List.of();
+            return new PageResult(List.of(), false);
         }
 
         List<ScanResult> results = new ArrayList<>();
+        boolean hasMore = false;
         try {
             JsonNode root = MAPPER.readTree(body);
+            hasMore = root.path("has_more").asBoolean(false);
             JsonNode items = root.path("items");
 
             for (JsonNode item : items) {
@@ -119,7 +128,7 @@ public class StackOverflowScanner implements SourceScanner {
                     continue;
                 }
 
-                if (matchesNegativeKeywords(title, request.negativeKeywords())) {
+                if (ScannerUtils.matchesNegativeKeywords(title, request.negativeKeywords())) {
                     continue;
                 }
 
@@ -150,12 +159,6 @@ public class StackOverflowScanner implements SourceScanner {
         } catch (Exception e) {
             logger.warn("Failed to parse StackOverflow response: {}", e.getMessage());
         }
-        return results;
-    }
-
-    private boolean matchesNegativeKeywords(String text, List<String> negativeKeywords) {
-        String lower = text.toLowerCase();
-        return negativeKeywords.stream()
-                .anyMatch(kw -> lower.contains(kw.toLowerCase()));
+        return new PageResult(results, hasMore);
     }
 }

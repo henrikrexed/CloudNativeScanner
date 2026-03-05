@@ -22,7 +22,6 @@ public class WebContentExtractor {
     private static final Logger logger = LoggerFactory.getLogger(WebContentExtractor.class);
 
     private static final int CONNECT_TIMEOUT_MS = 10_000;
-    private static final int READ_TIMEOUT_MS = 15_000;
     private static final int MIN_CONTENT_LENGTH = 100;
 
     /** Tags that typically contain boilerplate, not article content. */
@@ -88,6 +87,9 @@ public class WebContentExtractor {
      * Useful for testing and for content already fetched by other means.
      */
     public Optional<String> extractFromDocument(Document doc) {
+        // Clone to avoid mutating the caller's document
+        doc = doc.clone();
+
         // Remove boilerplate elements
         for (String selector : REMOVE_SELECTORS) {
             doc.select(selector).remove();

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.topicscanner.scanner.ScanRequest;
 import com.topicscanner.scanner.ScanResult;
+import com.topicscanner.scanner.ScannerUtils;
 import com.topicscanner.scanner.SourceScanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,9 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +29,7 @@ public class YouTubeScanner implements SourceScanner {
     private static final Logger logger = LoggerFactory.getLogger(YouTubeScanner.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String BASE_URL = "https://www.googleapis.com/youtube/v3";
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
 
     private final WebClient webClient;
     private final String apiKey;
@@ -66,7 +66,6 @@ public class YouTubeScanner implements SourceScanner {
         }
 
         try {
-            // Search for videos
             String searchBody = webClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/search")
@@ -79,7 +78,7 @@ public class YouTubeScanner implements SourceScanner {
                             .build())
                     .retrieve()
                     .bodyToMono(String.class)
-                    .block();
+                    .block(REQUEST_TIMEOUT);
 
             if (searchBody == null) {
                 return List.of();
@@ -92,7 +91,6 @@ public class YouTubeScanner implements SourceScanner {
                 return List.of();
             }
 
-            // Collect video IDs for statistics lookup
             List<String> videoIds = StreamSupport.stream(items.spliterator(), false)
                     .map(item -> item.path("id").path("videoId").asText(""))
                     .filter(id -> !id.isBlank())
@@ -110,12 +108,12 @@ public class YouTubeScanner implements SourceScanner {
                     continue;
                 }
 
-                if (matchesNegativeKeywords(title, request.negativeKeywords())) {
+                if (ScannerUtils.matchesNegativeKeywords(title, request.negativeKeywords())) {
                     continue;
                 }
 
                 String url = "https://www.youtube.com/watch?v=" + videoId;
-                LocalDateTime sourceDate = parseDate(snippet.path("publishedAt").asText(""));
+                var sourceDate = ScannerUtils.parseIsoDate(snippet.path("publishedAt").asText(""));
 
                 Map<String, Object> metadata = buildMetadata(videoId, snippet, statsMap.get(videoId));
                 results.add(new ScanResult(title, url, getSourceType(), metadata, sourceDate));
@@ -144,7 +142,7 @@ public class YouTubeScanner implements SourceScanner {
                             .build())
                     .retrieve()
                     .bodyToMono(String.class)
-                    .block();
+                    .block(REQUEST_TIMEOUT);
 
             if (body == null) {
                 return Map.of();
@@ -180,22 +178,5 @@ public class YouTubeScanner implements SourceScanner {
         }
 
         return metadata;
-    }
-
-    private LocalDateTime parseDate(String dateStr) {
-        if (dateStr == null || dateStr.isBlank()) {
-            return null;
-        }
-        try {
-            return LocalDateTime.parse(dateStr, DateTimeFormatter.ISO_DATE_TIME);
-        } catch (DateTimeParseException e) {
-            return null;
-        }
-    }
-
-    private boolean matchesNegativeKeywords(String text, List<String> negativeKeywords) {
-        String lower = text.toLowerCase();
-        return negativeKeywords.stream()
-                .anyMatch(kw -> lower.contains(kw.toLowerCase()));
     }
 }

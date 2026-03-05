@@ -83,21 +83,6 @@ public class YouTubeTranscriptExtractor {
         try {
             String videoUrl = "https://www.youtube.com/watch?v=" + videoId;
 
-            ProcessBuilder pb = new ProcessBuilder(
-                    "yt-dlp",
-                    "--skip-download",
-                    "--write-auto-sub",
-                    "--write-sub",
-                    "--sub-lang", "en",
-                    "--sub-format", "vtt",
-                    "--print-to-file", "%(subtitles)s", "-",
-                    "--no-warnings",
-                    "--quiet",
-                    videoUrl
-            );
-            pb.redirectErrorStream(true);
-
-            // First try to just get subtitle text directly
             ProcessBuilder textPb = new ProcessBuilder(
                     "yt-dlp",
                     "--skip-download",
@@ -176,11 +161,16 @@ public class YouTubeTranscriptExtractor {
             );
 
             Process process = pb.start();
-            byte[] audioBytes = process.getInputStream().readAllBytes();
-
-            boolean finished = process.waitFor(300, TimeUnit.SECONDS);
-            if (!finished || audioBytes.length == 0) {
-                process.destroyForcibly();
+            byte[] audioBytes;
+            try {
+                audioBytes = process.getInputStream().readAllBytes();
+            } finally {
+                boolean finished = process.waitFor(300, TimeUnit.SECONDS);
+                if (!finished) {
+                    process.destroyForcibly();
+                }
+            }
+            if (audioBytes.length == 0) {
                 logger.warn("Audio download failed for video {}", videoId);
                 return Optional.empty();
             }

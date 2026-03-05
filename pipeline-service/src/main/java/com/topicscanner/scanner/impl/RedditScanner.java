@@ -4,12 +4,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.topicscanner.scanner.ScanRequest;
 import com.topicscanner.scanner.ScanResult;
+import com.topicscanner.scanner.ScannerUtils;
 import com.topicscanner.scanner.SourceScanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -28,6 +30,7 @@ public class RedditScanner implements SourceScanner {
     private static final Logger logger = LoggerFactory.getLogger(RedditScanner.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String BASE_URL = "https://www.reddit.com";
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
     private static final long REQUEST_DELAY_MS = 6000;
 
     private final WebClient webClient;
@@ -87,12 +90,13 @@ public class RedditScanner implements SourceScanner {
     @Override
     public Optional<String> extractContent(String url) {
         try {
-            String jsonUrl = url.endsWith("/") ? url + ".json" : url + "/.json";
+            String normalized = url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
+            String jsonUrl = normalized + ".json";
             String body = webClient.get()
                     .uri(jsonUrl)
                     .retrieve()
                     .bodyToMono(String.class)
-                    .block();
+                    .block(REQUEST_TIMEOUT);
 
             if (body == null) {
                 return Optional.empty();
@@ -101,15 +105,14 @@ public class RedditScanner implements SourceScanner {
             JsonNode root = MAPPER.readTree(body);
             StringBuilder content = new StringBuilder();
 
-            // First element is the post
-            JsonNode postData = root.get(0).path("data").path("children").get(0).path("data");
+            // Use .path() to avoid NPE on missing nodes
+            JsonNode postData = root.path(0).path("data").path("children").path(0).path("data");
             String selftext = postData.path("selftext").asText("");
             if (!selftext.isBlank()) {
                 content.append(selftext).append("\n\n");
             }
 
-            // Second element is the comments
-            JsonNode comments = root.get(1).path("data").path("children");
+            JsonNode comments = root.path(1).path("data").path("children");
             for (JsonNode comment : comments) {
                 String commentBody = comment.path("data").path("body").asText("");
                 if (!commentBody.isBlank() && !comment.path("data").path("stickied").asBoolean()) {
@@ -136,7 +139,7 @@ public class RedditScanner implements SourceScanner {
                         .build(subreddit))
                 .retrieve()
                 .bodyToMono(String.class)
-                .block();
+                .block(REQUEST_TIMEOUT);
 
         if (body == null) {
             return List.of();
@@ -151,14 +154,14 @@ public class RedditScanner implements SourceScanner {
                 JsonNode data = child.path("data");
                 String title = data.path("title").asText("");
                 String permalink = data.path("permalink").asText("");
-                String url = BASE_URL + permalink;
+                String resultUrl = BASE_URL + permalink;
                 long createdUtc = data.path("created_utc").asLong(0);
 
                 if (title.isBlank() || permalink.isBlank()) {
                     continue;
                 }
 
-                if (matchesNegativeKeywords(title, request.negativeKeywords())) {
+                if (ScannerUtils.matchesNegativeKeywords(title, request.negativeKeywords())) {
                     continue;
                 }
 
@@ -168,7 +171,7 @@ public class RedditScanner implements SourceScanner {
 
                 results.add(new ScanResult(
                         title,
-                        url,
+                        resultUrl,
                         getSourceType(),
                         Map.of(
                                 "externalId", data.path("id").asText(""),
@@ -191,14 +194,7 @@ public class RedditScanner implements SourceScanner {
         if (configured instanceof List<?> list && !list.isEmpty()) {
             return list.stream().map(Object::toString).toList();
         }
-        // Default tech subreddits
         return List.of("programming", "devops", "kubernetes", "cloudnative", "golang",
                 "java", "python", "rust", "webdev", "machinelearning");
-    }
-
-    private boolean matchesNegativeKeywords(String text, List<String> negativeKeywords) {
-        String lower = text.toLowerCase();
-        return negativeKeywords.stream()
-                .anyMatch(kw -> lower.contains(kw.toLowerCase()));
     }
 }

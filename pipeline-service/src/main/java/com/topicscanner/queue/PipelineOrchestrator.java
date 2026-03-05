@@ -28,13 +28,13 @@ public class PipelineOrchestrator {
 
     private final PipelineJobRepository jobRepository;
     private final Map<Stage, StageHandler> handlers = new EnumMap<>(Stage.class);
-
-    @Value("${topicscanner.pipeline.stale-job-minutes:10}")
-    private int staleJobMinutes;
+    private final int staleJobMinutes;
 
     public PipelineOrchestrator(PipelineJobRepository jobRepository,
-                                 List<StageHandler> stageHandlers) {
+                                 List<StageHandler> stageHandlers,
+                                 @Value("${topicscanner.pipeline.stale-job-minutes:10}") int staleJobMinutes) {
         this.jobRepository = jobRepository;
+        this.staleJobMinutes = staleJobMinutes;
         for (StageHandler handler : stageHandlers) {
             handlers.put(handler.getStage(), handler);
             logger.info("Registered stage handler: {} -> {}",
@@ -56,11 +56,11 @@ public class PipelineOrchestrator {
 
     /**
      * Claim and process one job for the given stage.
-     * Returns true if a job was processed, false if the queue was empty.
+     * Uses separate transactions for claim, completion, and failure
+     * to prevent failure state loss on DB errors.
      */
-    @Transactional
     public boolean pollStage(Stage stage) {
-        Optional<PipelineJob> claimed = jobRepository.claimNextJob(stage.name());
+        Optional<PipelineJob> claimed = claimJob(stage);
         if (claimed.isEmpty()) {
             return false;
         }
@@ -78,8 +78,7 @@ public class PipelineOrchestrator {
 
             handler.handle(job);
 
-            job.markCompleted();
-            jobRepository.save(job);
+            completeJob(job);
 
             logger.info("Completed job {} for topic {} at stage {}",
                     job.getId(), job.getTopicId(), stage);
@@ -88,12 +87,30 @@ public class PipelineOrchestrator {
             logger.error("Failed job {} for topic {} at stage {}: {}",
                     job.getId(), job.getTopicId(), stage, e.getMessage(), e);
 
-            job.markFailed(e.getMessage());
-            jobRepository.save(job);
-            return true; // a job was processed (just failed)
+            failJob(job, e.getMessage());
+            return true;
         } finally {
-            MDC.clear();
+            MDC.remove("jobId");
+            MDC.remove("topicId");
+            MDC.remove("stage");
         }
+    }
+
+    @Transactional
+    protected Optional<PipelineJob> claimJob(Stage stage) {
+        return jobRepository.claimNextJob(stage.name());
+    }
+
+    @Transactional
+    protected void completeJob(PipelineJob job) {
+        job.markCompleted();
+        jobRepository.save(job);
+    }
+
+    @Transactional
+    protected void failJob(PipelineJob job, String errorMessage) {
+        job.markFailed(errorMessage);
+        jobRepository.save(job);
     }
 
     /**

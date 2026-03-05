@@ -30,7 +30,7 @@ public class QualityFilter implements TopicFilter {
 
     @Override
     public int getOrder() {
-        return 60;
+        return 45;
     }
 
     @Override
@@ -67,9 +67,9 @@ public class QualityFilter implements TopicFilter {
         else if (paragraphs >= 2) score += 0.1;
 
         // Code blocks (0-0.15): technical content often includes code
-        long codeBlocks = content.chars().filter(c -> c == '`').count() / 2;
-        if (codeBlocks >= 2) score += 0.15;
-        else if (codeBlocks >= 1) score += 0.1;
+        long codeBlocks = countOccurrences(content, "```");
+        if (codeBlocks >= 4) score += 0.15;  // 4 markers = 2 blocks
+        else if (codeBlocks >= 2) score += 0.1;
 
         // Headings (0-0.15): organized content has headings
         long headings = content.lines().filter(l -> l.startsWith("##")).count();
@@ -89,5 +89,15 @@ public class QualityFilter implements TopicFilter {
         }
 
         return Math.min(1.0, score);
+    }
+
+    private long countOccurrences(String text, String sub) {
+        long count = 0;
+        int idx = 0;
+        while ((idx = text.indexOf(sub, idx)) >= 0) {
+            count++;
+            idx += sub.length();
+        }
+        return count;
     }
 }
