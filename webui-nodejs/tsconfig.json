@@ -31,10 +31,6 @@
   "exclude": [
     "node_modules",
     "**/*.spec.ts",
-    "**/*.spec.tsx",
-    "playwright.config.ts",
-    "tests/**/*",
-    "pages/**/*",
-    "hooks/**/*"
+    "**/*.spec.tsx"
   ]
 }

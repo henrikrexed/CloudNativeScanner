@@ -46,3 +46,6 @@ Thumbs.db
 target/
 shared/target/
 pipeline-service/target/
+site/
+*.class
+target/
