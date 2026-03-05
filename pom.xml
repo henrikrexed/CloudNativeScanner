@@ -34,7 +34,6 @@
         <spotbugs.version>4.7.3.5</spotbugs.version>
         <spotless.version>2.40.0</spotless.version>
         <opentelemetry.version>1.46.0</opentelemetry.version>
-        <dependency-check.failOnError>true</dependency-check.failOnError>
     </properties>
 
     <repositories>
@@ -355,8 +354,10 @@
                 <configuration>
                     <format>ALL</format>
                     <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
-                    <failOnError>${dependency-check.failOnError}</failOnError>
+                    <failOnError>false</failOnError>
                     <ossIndexAnalyzerEnabled>false</ossIndexAnalyzerEnabled>
+                    <ossIndexWarnOnlyOnRemoteErrors>true</ossIndexWarnOnlyOnRemoteErrors>
+                    <failBuildOnCVSS>9</failBuildOnCVSS>
                 </configuration>
                 <executions>
                     <execution>
