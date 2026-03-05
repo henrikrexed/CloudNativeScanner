@@ -89,10 +89,6 @@
                 <artifactId>opentelemetry-exporter-otlp-common</artifactId>
                 <version>${opentelemetry.version}</version>
             </dependency>
-            <dependency>
-                <groupId>io.opentelemetry</groupId>
-
-            </dependency>
         </dependencies>
     </dependencyManagement>
 
