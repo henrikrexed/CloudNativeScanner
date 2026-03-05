@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-pipeline-config
+  labels:
+    {{- include "scanner.labels" . | nindent 4 }}
+data:
+  application.yaml: |
+    server:
+      port: 8080
+    spring:
+      datasource:
+        url: jdbc:postgresql://{{ include "scanner.dbHost" . }}:5432/{{ .Values.postgresql.auth.database }}
+        username: {{ .Values.postgresql.auth.username }}
+      jpa:
+        hibernate:
+          ddl-auto: validate
+      flyway:
+        enabled: true
+
+    # LLM
+    llm:
+      provider: {{ .Values.llm.provider }}
+      model: {{ .Values.llm.model }}
+      {{- if eq .Values.llm.provider "ollama" }}
+      ollama:
+        url: {{ .Values.llm.ollama.url }}
+      {{- end }}
+      {{- if .Values.llm.fallback.enabled }}
+      fallback:
+        provider: {{ .Values.llm.fallback.provider }}
+        model: {{ .Values.llm.fallback.model }}
+      {{- end }}
+
+    # pgvector
+    pgvector:
+      enabled: {{ .Values.pgvector.enabled }}
+      dimensions: {{ .Values.pgvector.dimensions }}
+
+    # Scanners
+    scanners:
+      reddit:
+        enabled: {{ .Values.scanners.reddit.enabled }}
+        user-agent: {{ .Values.scanners.reddit.userAgent | quote }}
+      stackoverflow:
+        enabled: {{ .Values.scanners.stackoverflow.enabled }}
+      medium:
+        enabled: {{ .Values.scanners.medium.enabled }}
+      devto:
+        enabled: {{ .Values.scanners.devto.enabled }}
+      hashnode:
+        enabled: {{ .Values.scanners.hashnode.enabled }}
+      youtube:
+        enabled: {{ .Values.scanners.youtube.enabled }}
+
+    # Actuator
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,prometheus
+      endpoint:
+        health:
+          show-details: always
+
+    {{- if .Values.observability.otel.enabled }}
+    # OpenTelemetry
+    otel:
+      exporter:
+        otlp:
+          endpoint: {{ .Values.observability.otel.endpoint }}
+    {{- end }}

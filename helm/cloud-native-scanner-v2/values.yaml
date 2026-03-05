@@ -1,0 +1,121 @@
+# ============================================================
+# TopicScanner v2 — Default Values
+# ============================================================
+
+# -- Global ------------------------------------------------
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+# -- PostgreSQL (Bitnami subchart) -------------------------
+postgresql:
+  enabled: true
+  auth:
+    database: topicscanner
+    username: topicscanner
+    # Set via --set or external secret
+    password: ""
+    existingSecret: ""
+  primary:
+    persistence:
+      size: 10Gi
+    initdb:
+      scripts:
+        enable-pgvector.sql: |
+          CREATE EXTENSION IF NOT EXISTS vector;
+
+# pgvector toggle — controls whether the pipeline stores embeddings
+pgvector:
+  enabled: true
+  dimensions: 1536
+
+# -- Pipeline Service (Spring Boot) -----------------------
+pipelineService:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/cloud-native-scanner/pipeline-service
+    tag: ""          # defaults to .Chart.AppVersion
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  service:
+    port: 8080
+  # Extra env vars (list of {name, value} or {name, valueFrom})
+  extraEnv: []
+
+# -- WebUI (Next.js) --------------------------------------
+webui:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/cloud-native-scanner/webui-nodejs
+    tag: ""          # defaults to .Chart.AppVersion
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  service:
+    port: 3000
+
+# -- Ingress -----------------------------------------------
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: scanner.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# -- LLM Configuration ------------------------------------
+llm:
+  # Primary provider: ollama | openai | anthropic | azure-openai | gemini
+  provider: ollama
+  model: llama3
+  apiKey: ""                   # ignored for ollama
+  existingSecret: ""           # use an existing secret for the API key
+
+  ollama:
+    url: http://ollama:11434
+
+  # Fallback provider (optional)
+  fallback:
+    enabled: false
+    provider: openai
+    model: gpt-4o-mini
+    apiKey: ""
+
+# -- Scanner Configuration --------------------------------
+scanners:
+  reddit:
+    enabled: false
+    clientId: ""
+    clientSecret: ""
+    userAgent: "TopicScanner/2.0"
+  stackoverflow:
+    enabled: true
+  medium:
+    enabled: true
+  devto:
+    enabled: true
+  hashnode:
+    enabled: true
+  youtube:
+    enabled: false
+    apiKey: ""
+
+# -- Observability -----------------------------------------
+observability:
+  otel:
+    enabled: false
+    endpoint: ""

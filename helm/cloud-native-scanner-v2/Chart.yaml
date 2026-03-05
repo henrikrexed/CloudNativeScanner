@@ -1,0 +1,21 @@
+apiVersion: v2
+name: cloud-native-scanner
+description: TopicScanner v2 — AI-powered DevRel intelligence platform
+type: application
+version: 2.0.0
+appVersion: "2.0.0"
+keywords:
+  - cloud-native
+  - scanner
+  - ai
+  - devrel
+  - content-generation
+home: https://github.com/cloud-native-scanner/CloudNativeScanner
+maintainers:
+  - name: Henrik Rexed
+    email: henrik.rexed@dynatrace.com
+dependencies:
+  - name: postgresql
+    version: "16.4.1"
+    repository: oci://registry-1.docker.io/bitnamicharts
+    condition: postgresql.enabled
