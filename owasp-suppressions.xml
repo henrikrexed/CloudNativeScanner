@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <!-- False positive: CVE-2023-39017 is for Quartz CMS (QuartzCMS.com), not quartz-scheduler -->
+    <suppress>
+        <notes><![CDATA[CVE-2023-39017 applies to Quartz CMS, not org.quartz-scheduler:quartz]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.quartz-scheduler/quartz@.*$</packageUrl>
+        <cve>CVE-2023-39017</cve>
+    </suppress>
+</suppressions>
