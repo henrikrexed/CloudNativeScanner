@@ -59,4 +59,5 @@ nav:
   - Scanners: scanners.md
   - Content Studio: content-studio.md
   - API Reference: api-reference.md
+  - LLM Models: llm-models.md
   - Deployment: deployment.md

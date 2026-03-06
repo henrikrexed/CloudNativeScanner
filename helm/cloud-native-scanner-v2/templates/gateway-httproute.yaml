@@ -1,0 +1,81 @@
+{{- if .Values.gateway.enabled }}
+{{- if .Values.gateway.create }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ .Release.Name }}-gateway
+  labels:
+    {{- include "scanner.labels" . | nindent 4 }}
+  {{- with .Values.gateway.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  gatewayClassName: {{ .Values.gateway.className }}
+  listeners:
+    {{- if .Values.gateway.tls.enabled }}
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: {{ .Values.gateway.hostname | quote }}
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: {{ .Values.gateway.tls.secretName }}
+    {{- end }}
+    - name: http
+      protocol: HTTP
+      port: 80
+      hostname: {{ .Values.gateway.hostname | quote }}
+{{- end }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ .Release.Name }}-api
+  labels:
+    {{- include "scanner.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ default (printf "%s-gateway" .Release.Name) .Values.gateway.gatewayRef }}
+      {{- if .Values.gateway.gatewayRefNamespace }}
+      namespace: {{ .Values.gateway.gatewayRefNamespace }}
+      {{- end }}
+  {{- if .Values.gateway.hostname }}
+  hostnames:
+    - {{ .Values.gateway.hostname | quote }}
+  {{- end }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api
+      backendRefs:
+        - name: {{ .Release.Name }}-pipeline-service
+          port: {{ .Values.pipelineService.service.port }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ .Release.Name }}-webui
+  labels:
+    {{- include "scanner.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ default (printf "%s-gateway" .Release.Name) .Values.gateway.gatewayRef }}
+      {{- if .Values.gateway.gatewayRefNamespace }}
+      namespace: {{ .Values.gateway.gatewayRefNamespace }}
+      {{- end }}
+  {{- if .Values.gateway.hostname }}
+  hostnames:
+    - {{ .Values.gateway.hostname | quote }}
+  {{- end }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: {{ .Release.Name }}-webui
+          port: {{ .Values.webui.service.port }}
+{{- end }}

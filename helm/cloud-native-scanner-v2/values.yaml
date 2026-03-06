@@ -75,17 +75,23 @@ webui:
   service:
     port: 3000
 
-# -- Ingress -----------------------------------------------
-ingress:
+# -- Gateway API -------------------------------------------
+gateway:
   enabled: false
-  className: nginx
+  # Create a Gateway resource, or reference an existing one
+  create: true
+  # Gateway class name (provider-agnostic: traefik, istio, cilium, etc.)
+  className: 
+  # Reference an existing Gateway instead of creating one
+  # If set, gateway.create is ignored
+  gatewayRef: 
+  gatewayRefNamespace: 
+  # Hostname for the Gateway listener and HTTPRoutes
+  hostname: scanner.example.com
   annotations: {}
-  hosts:
-    - host: scanner.example.com
-      paths:
-        - path: /
-          pathType: Prefix
-  tls: []
+  tls:
+    enabled: false
+    secretName: scanner-tls
 
 # -- LLM Configuration ------------------------------------
 llm:
