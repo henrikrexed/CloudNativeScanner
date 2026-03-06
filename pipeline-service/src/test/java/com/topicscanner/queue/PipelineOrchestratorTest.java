@@ -5,6 +5,9 @@ import com.cncf.scanner.model.PipelineJob.Stage;
 import com.cncf.scanner.model.PipelineJob.Status;
 import com.cncf.scanner.repository.PipelineJobRepository;
 import com.topicscanner.telemetry.TelemetryService;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Tracer;
+import static org.mockito.Mockito.lenient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -63,6 +66,8 @@ class PipelineOrchestratorTest {
 
     @BeforeEach
     void setUp() {
+        Tracer noopTracer = OpenTelemetry.noop().getTracer("test");
+        lenient().when(telemetryService.getTracer()).thenReturn(noopTracer);
         extractHandler = new TestStageHandler(Stage.EXTRACT);
         orchestrator = new PipelineOrchestrator(jobRepository, List.of(extractHandler), 10, telemetryService);
     }

@@ -6,11 +6,16 @@ import com.cncf.scanner.model.PipelineJob.Stage;
 import com.cncf.scanner.service.CategoryService;
 import com.topicscanner.scanner.*;
 import com.topicscanner.telemetry.TelemetryService;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Tracer;
+import static org.mockito.Mockito.lenient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.LocalDateTime;
@@ -23,6 +28,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class ScanOrchestratorTest {
 
     @Mock
@@ -62,6 +68,8 @@ class ScanOrchestratorTest {
 
     @BeforeEach
     void setUp() {
+        Tracer noopTracer = OpenTelemetry.noop().getTracer("test");
+        lenient().when(telemetryService.getTracer()).thenReturn(noopTracer);
         scanOrchestrator = new ScanOrchestrator(
                 categoryService, scannerRegistry, pipelineOrchestrator, jdbcTemplate, 100, telemetryService);
     }
