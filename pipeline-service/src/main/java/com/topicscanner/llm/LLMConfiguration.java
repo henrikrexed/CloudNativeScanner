@@ -1,7 +1,11 @@
 package com.topicscanner.llm;
 
+import com.topicscanner.telemetry.LLMMetrics;
+import com.topicscanner.telemetry.TelemetryService;
+import io.opentelemetry.api.trace.Tracer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -15,36 +19,45 @@ public class LLMConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(LLMConfiguration.class);
 
+    @Autowired(required = false)
+    private TelemetryService telemetryService;
+
+    @Autowired(required = false)
+    private LLMMetrics llmMetrics;
+
     @Bean
     public LLMService llmService(LLMProperties properties, WebClient.Builder webClientBuilder) {
-        LLMService primary = createProvider(properties.getPrimary(), properties, webClientBuilder);
+        Tracer tracer = telemetryService != null
+                ? telemetryService.getTracer()
+                : io.opentelemetry.api.GlobalOpenTelemetry.getTracer("topicscanner-pipeline");
+
+        LLMService primary = createProvider(properties.getPrimary(), properties, webClientBuilder, tracer);
         if (primary == null) {
             throw new IllegalStateException(
                     "Primary LLM provider '" + properties.getPrimary() + "' could not be created. "
                     + "Check topicscanner.llm.primary in application.yml");
         }
 
-        LLMService fallback = createProvider(properties.getCloudFallback(), properties, webClientBuilder);
+        LLMService fallback = createProvider(properties.getCloudFallback(), properties, webClientBuilder, tracer);
 
         logger.info("LLM configured: primary={}, fallback={}",
                 primary.getProvider(), fallback != null ? fallback.getProvider() : "none");
 
-        return new FallbackLLMService(primary, fallback);
+        return new FallbackLLMService(primary, fallback, tracer);
     }
 
     private LLMService createProvider(String providerName, LLMProperties properties,
-                                       WebClient.Builder webClientBuilder) {
+                                       WebClient.Builder webClientBuilder, Tracer tracer) {
         if (providerName == null || providerName.isBlank()) {
             return null;
         }
 
         LLMProperties.ProviderConfig config = properties.getProviderConfig(providerName);
 
-        // Clone the builder so each provider gets its own independent WebClient
         return switch (providerName) {
-            case "ollama" -> new OllamaLLMService(config, webClientBuilder.clone());
-            case "openai" -> new OpenAILLMService(config, webClientBuilder.clone());
-            case "claude" -> new ClaudeLLMService(config, webClientBuilder.clone());
+            case "ollama" -> new OllamaLLMService(config, webClientBuilder.clone(), tracer, llmMetrics);
+            case "openai" -> new OpenAILLMService(config, webClientBuilder.clone(), tracer, llmMetrics);
+            case "claude" -> new ClaudeLLMService(config, webClientBuilder.clone(), tracer, llmMetrics);
             default -> {
                 logger.warn("Unknown LLM provider: {}", providerName);
                 yield null;

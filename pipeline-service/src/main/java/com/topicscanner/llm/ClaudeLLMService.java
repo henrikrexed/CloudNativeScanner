@@ -2,10 +2,14 @@ package com.topicscanner.llm;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.topicscanner.telemetry.GenAISpanHelper;
+import com.topicscanner.telemetry.LLMMetrics;
+import io.opentelemetry.api.trace.Tracer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.Duration;
 import java.util.List;
@@ -26,10 +30,15 @@ public class ClaudeLLMService implements LLMService {
     private final WebClient webClient;
     private final LLMProperties.ProviderConfig config;
     private final Duration timeout;
+    private final Tracer tracer;
+    private final LLMMetrics llmMetrics;
 
-    public ClaudeLLMService(LLMProperties.ProviderConfig config, WebClient.Builder webClientBuilder) {
+    public ClaudeLLMService(LLMProperties.ProviderConfig config, WebClient.Builder webClientBuilder,
+                             Tracer tracer, LLMMetrics llmMetrics) {
         this.config = config;
         this.timeout = Duration.ofSeconds(config.getTimeoutSeconds());
+        this.tracer = tracer;
+        this.llmMetrics = llmMetrics;
         this.webClient = webClientBuilder
                 .baseUrl(BASE_URL)
                 .defaultHeader("x-api-key", config.getApiKey())
@@ -47,6 +56,17 @@ public class ClaudeLLMService implements LLMService {
         String model = config.getModelForTask(taskType);
         logger.debug("Claude completion: model={}, task={}", model, taskType);
 
+        return GenAISpanHelper.traceCompletion(tracer, "claude", model, systemPrompt, userPrompt,
+                () -> doComplete(model, systemPrompt, userPrompt),
+                new GenAISpanHelper.TokenExtractor<>() {
+                    @Override public String model(LLMResponse r) { return r.model(); }
+                    @Override public String text(LLMResponse r) { return r.text(); }
+                    @Override public long inputTokens(LLMResponse r) { return r.promptTokens(); }
+                    @Override public long outputTokens(LLMResponse r) { return r.completionTokens(); }
+                });
+    }
+
+    private LLMResponse doComplete(String model, String systemPrompt, String userPrompt) {
         Map<String, Object> body = Map.of(
                 "model", model,
                 "max_tokens", 4096,
@@ -74,7 +94,17 @@ public class ClaudeLLMService implements LLMService {
             int inputTokens = root.path("usage").path("input_tokens").asInt(0);
             int outputTokens = root.path("usage").path("output_tokens").asInt(0);
 
-            return new LLMResponse(text, model, inputTokens, outputTokens);
+            LLMResponse response = new LLMResponse(text, model, inputTokens, outputTokens);
+            if (llmMetrics != null) {
+                llmMetrics.recordTokenUsage("claude", inputTokens, outputTokens);
+            }
+            return response;
+        } catch (WebClientResponseException e) {
+            if (e.getStatusCode().value() == 429) {
+                if (llmMetrics != null) llmMetrics.recordRateLimit("claude");
+                throw new LLMRateLimitException("claude", "Rate limited by Claude", e);
+            }
+            throw new LLMException("claude", "Completion failed for model " + model, e);
         } catch (LLMException e) {
             throw e;
         } catch (Exception e) {

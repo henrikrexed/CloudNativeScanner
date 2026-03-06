@@ -2,10 +2,14 @@ package com.topicscanner.llm;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.topicscanner.telemetry.GenAISpanHelper;
+import com.topicscanner.telemetry.LLMMetrics;
+import io.opentelemetry.api.trace.Tracer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -24,10 +28,15 @@ public class OpenAILLMService implements LLMService {
     private final WebClient webClient;
     private final LLMProperties.ProviderConfig config;
     private final Duration timeout;
+    private final Tracer tracer;
+    private final LLMMetrics llmMetrics;
 
-    public OpenAILLMService(LLMProperties.ProviderConfig config, WebClient.Builder webClientBuilder) {
+    public OpenAILLMService(LLMProperties.ProviderConfig config, WebClient.Builder webClientBuilder,
+                             Tracer tracer, LLMMetrics llmMetrics) {
         this.config = config;
         this.timeout = Duration.ofSeconds(config.getTimeoutSeconds());
+        this.tracer = tracer;
+        this.llmMetrics = llmMetrics;
         this.webClient = webClientBuilder
                 .baseUrl(BASE_URL)
                 .defaultHeader("Authorization", "Bearer " + config.getApiKey())
@@ -44,6 +53,17 @@ public class OpenAILLMService implements LLMService {
         String model = config.getModelForTask(taskType);
         logger.debug("OpenAI completion: model={}, task={}", model, taskType);
 
+        return GenAISpanHelper.traceCompletion(tracer, "openai", model, systemPrompt, userPrompt,
+                () -> doComplete(model, systemPrompt, userPrompt),
+                new GenAISpanHelper.TokenExtractor<>() {
+                    @Override public String model(LLMResponse r) { return r.model(); }
+                    @Override public String text(LLMResponse r) { return r.text(); }
+                    @Override public long inputTokens(LLMResponse r) { return r.promptTokens(); }
+                    @Override public long outputTokens(LLMResponse r) { return r.completionTokens(); }
+                });
+    }
+
+    private LLMResponse doComplete(String model, String systemPrompt, String userPrompt) {
         Map<String, Object> body = Map.of(
                 "model", model,
                 "messages", List.of(
@@ -70,7 +90,17 @@ public class OpenAILLMService implements LLMService {
             int promptTokens = root.path("usage").path("prompt_tokens").asInt(0);
             int completionTokens = root.path("usage").path("completion_tokens").asInt(0);
 
-            return new LLMResponse(text, model, promptTokens, completionTokens);
+            LLMResponse response = new LLMResponse(text, model, promptTokens, completionTokens);
+            if (llmMetrics != null) {
+                llmMetrics.recordTokenUsage("openai", promptTokens, completionTokens);
+            }
+            return response;
+        } catch (WebClientResponseException e) {
+            if (e.getStatusCode().value() == 429) {
+                if (llmMetrics != null) llmMetrics.recordRateLimit("openai");
+                throw new LLMRateLimitException("openai", "Rate limited by OpenAI", e);
+            }
+            throw new LLMException("openai", "Completion failed for model " + model, e);
         } catch (LLMException e) {
             throw e;
         } catch (Exception e) {
@@ -83,6 +113,11 @@ public class OpenAILLMService implements LLMService {
         String model = config.getModelForTask(LLMTaskType.EMBEDDING);
         logger.debug("OpenAI embedding: model={}, texts={}", model, texts.size());
 
+        return GenAISpanHelper.traceEmbedding(tracer, "openai", model, texts.size(),
+                () -> doEmbed(model, texts));
+    }
+
+    private List<float[]> doEmbed(String model, List<String> texts) {
         Map<String, Object> body = Map.of(
                 "model", model,
                 "input", texts
@@ -113,6 +148,12 @@ public class OpenAILLMService implements LLMService {
                 embeddings.add(vector);
             }
             return embeddings;
+        } catch (WebClientResponseException e) {
+            if (e.getStatusCode().value() == 429) {
+                if (llmMetrics != null) llmMetrics.recordRateLimit("openai");
+                throw new LLMRateLimitException("openai", "Rate limited by OpenAI", e);
+            }
+            throw new LLMException("openai", "Embedding failed for model " + model, e);
         } catch (LLMException e) {
             throw e;
         } catch (Exception e) {

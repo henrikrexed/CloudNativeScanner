@@ -1,15 +1,24 @@
 package com.topicscanner.queue;
 
 import com.cncf.scanner.model.Category;
+import com.cncf.scanner.model.PipelineJob;
 import com.cncf.scanner.model.PipelineJob.Stage;
 import com.cncf.scanner.service.CategoryService;
 import com.topicscanner.scanner.ScanRequest;
 import com.topicscanner.scanner.ScanResult;
 import com.topicscanner.scanner.ScannerRegistry;
 import com.topicscanner.scanner.SourceScanner;
+import com.topicscanner.telemetry.TelemetryService;
+import com.topicscanner.telemetry.TracePropagationHelper;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.context.Scope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -32,17 +41,20 @@ public class ScanOrchestrator {
     private final PipelineOrchestrator pipelineOrchestrator;
     private final JdbcTemplate jdbcTemplate;
     private final int maxResultsPerScan;
+    private final TelemetryService telemetryService;
 
     public ScanOrchestrator(CategoryService categoryService,
                              ScannerRegistry scannerRegistry,
                              PipelineOrchestrator pipelineOrchestrator,
                              JdbcTemplate jdbcTemplate,
-                             @Value("${topicscanner.pipeline.max-results-per-scan:25}") int maxResultsPerScan) {
+                             @Value("${topicscanner.pipeline.max-results-per-scan:25}") int maxResultsPerScan,
+                             @Autowired(required = false) TelemetryService telemetryService) {
         this.categoryService = categoryService;
         this.scannerRegistry = scannerRegistry;
         this.pipelineOrchestrator = pipelineOrchestrator;
         this.jdbcTemplate = jdbcTemplate;
         this.maxResultsPerScan = maxResultsPerScan;
+        this.telemetryService = telemetryService;
     }
 
     /**
@@ -50,6 +62,24 @@ public class ScanOrchestrator {
      */
     @Scheduled(cron = "${topicscanner.pipeline.scan-cron:0 0 6 * * *}")
     public void scheduledScan() {
+        Span rootSpan = telemetryService != null
+                ? telemetryService.getTracer().spanBuilder("topicscanner.scan").startSpan()
+                : null;
+        try (Scope ignored = rootSpan != null ? rootSpan.makeCurrent() : null) {
+            doScheduledScan();
+            if (rootSpan != null) rootSpan.setStatus(StatusCode.OK);
+        } catch (Exception e) {
+            if (rootSpan != null) {
+                rootSpan.setStatus(StatusCode.ERROR, e.getMessage());
+                rootSpan.recordException(e);
+            }
+            throw e;
+        } finally {
+            if (rootSpan != null) rootSpan.end();
+        }
+    }
+
+    private void doScheduledScan() {
         logger.info("Starting scheduled scan");
         List<Category> categories = categoryService.findEnabled();
         int totalNew = 0;
@@ -74,8 +104,6 @@ public class ScanOrchestrator {
 
     /**
      * Scan a single category across all its configured sources.
-     * No @Transactional here — avoids holding a DB connection during external HTTP calls.
-     * Each topic insert is atomic via upsert.
      */
     public int scanCategory(Category category) {
         List<String> sources = category.getSourcesList();
@@ -109,33 +137,55 @@ public class ScanOrchestrator {
 
     private int scanSource(SourceScanner scanner, Category category,
                             List<String> keywords, List<String> negativeKeywords) {
-        ScanRequest request = new ScanRequest(keywords, negativeKeywords, null, maxResultsPerScan);
-        List<ScanResult> results = scanner.scan(request);
+        String sourceType = scanner.getSourceType();
+        Span sourceSpan = telemetryService != null
+                ? telemetryService.getTracer().spanBuilder("topicscanner.scan." + sourceType).startSpan()
+                : null;
 
-        logger.info("Scanner '{}' returned {} results for category '{}'",
-                scanner.getSourceType(), results.size(), category.getName());
-
-        int newCount = 0;
-        for (ScanResult result : results) {
-            Long topicId = persistTopicIfNew(result, category);
-            if (topicId != null) {
-                pipelineOrchestrator.enqueue(Stage.EXTRACT, topicId);
-                newCount++;
+        try (Scope ignored = sourceSpan != null ? sourceSpan.makeCurrent() : null) {
+            if (sourceSpan != null) {
+                sourceSpan.setAttribute("source", sourceType);
+                sourceSpan.setAttribute("category", category.getName());
             }
-        }
 
-        return newCount;
+            ScanRequest request = new ScanRequest(keywords, negativeKeywords, null, maxResultsPerScan);
+            List<ScanResult> results = scanner.scan(request);
+
+            logger.info("Scanner '{}' returned {} results for category '{}'",
+                    sourceType, results.size(), category.getName());
+
+            int newCount = 0;
+            for (ScanResult result : results) {
+                Long topicId = persistTopicIfNew(result, category);
+                if (topicId != null) {
+                    PipelineJob job = pipelineOrchestrator.enqueue(Stage.EXTRACT, topicId);
+                    TracePropagationHelper.injectTraceContext(job.getMetadata());
+                    newCount++;
+                }
+            }
+
+            if (sourceSpan != null) {
+                sourceSpan.setAttribute("topics_found", newCount);
+                sourceSpan.setStatus(StatusCode.OK);
+            }
+            return newCount;
+        } catch (Exception e) {
+            if (sourceSpan != null) {
+                sourceSpan.setStatus(StatusCode.ERROR, e.getMessage());
+                sourceSpan.recordException(e);
+            }
+            throw e;
+        } finally {
+            if (sourceSpan != null) sourceSpan.end();
+        }
     }
 
     /**
      * Atomically insert a topic if it doesn't already exist (by source + external_id).
-     * Uses INSERT ... ON CONFLICT DO NOTHING to avoid TOCTOU race conditions.
-     * Returns the topic ID if newly inserted, null if it already existed.
      */
     private Long persistTopicIfNew(ScanResult result, Category category) {
         String externalId = deriveExternalId(result);
 
-        // Look up source ID by scanner type name
         List<Long> sourceIds = jdbcTemplate.queryForList(
                 "SELECT id FROM sources WHERE LOWER(name) = LOWER(?)",
                 Long.class, result.sourceType());
@@ -148,7 +198,6 @@ public class ScanOrchestrator {
 
         Long sourceId = sourceIds.get(0);
 
-        // Atomic upsert — avoids TOCTOU race between concurrent scanners
         List<Long> inserted = jdbcTemplate.queryForList(
                 """
                 INSERT INTO topics (source_id, category_id, external_id, title, url,
@@ -169,9 +218,6 @@ public class ScanOrchestrator {
         return inserted.isEmpty() ? null : inserted.get(0);
     }
 
-    /**
-     * Derive a stable external ID from the scan result.
-     */
     private String deriveExternalId(ScanResult result) {
         if (result.metadata() != null) {
             Object id = result.metadata().get("externalId");

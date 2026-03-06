@@ -3,6 +3,10 @@ package com.topicscanner.generator;
 import com.topicscanner.llm.LLMResponse;
 import com.topicscanner.llm.LLMService;
 import com.topicscanner.llm.LLMTaskType;
+import com.topicscanner.telemetry.TelemetryService;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.context.Scope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -23,6 +27,7 @@ public class ContentGenerationService {
     private static final int MAX_REGENERATIONS = 5;
 
     private final JdbcTemplate jdbcTemplate;
+    private final TelemetryService telemetryService;
     private final LLMService llmService;
     private final StyleAnalysisService styleAnalysisService;
     private final UserContentService userContentService;
@@ -30,11 +35,13 @@ public class ContentGenerationService {
     public ContentGenerationService(JdbcTemplate jdbcTemplate,
                                      LLMService llmService,
                                      StyleAnalysisService styleAnalysisService,
-                                     UserContentService userContentService) {
+                                     UserContentService userContentService,
+                                     @org.springframework.beans.factory.annotation.Autowired(required = false) TelemetryService telemetryService) {
         this.jdbcTemplate = jdbcTemplate;
         this.llmService = llmService;
         this.styleAnalysisService = styleAnalysisService;
         this.userContentService = userContentService;
+        this.telemetryService = telemetryService;
     }
 
     /**
@@ -47,6 +54,26 @@ public class ContentGenerationService {
      */
     @Transactional
     public Long generate(Long topicId, String groupId, String outputFormat) {
+        Span genSpan = telemetryService != null
+                ? telemetryService.getTracer().spanBuilder("topicscanner.generate." + outputFormat).startSpan()
+                : null;
+        try (Scope ignored = genSpan != null ? genSpan.makeCurrent() : null) {
+            if (genSpan != null) genSpan.setAttribute("format", outputFormat);
+            Long result = doGenerate(topicId, groupId, outputFormat);
+            if (genSpan != null) genSpan.setStatus(StatusCode.OK);
+            return result;
+        } catch (Exception e) {
+            if (genSpan != null) {
+                genSpan.setStatus(StatusCode.ERROR, e.getMessage());
+                genSpan.recordException(e);
+            }
+            throw e;
+        } finally {
+            if (genSpan != null) genSpan.end();
+        }
+    }
+
+    private Long doGenerate(Long topicId, String groupId, String outputFormat) {
         // Load topic content
         StringBuilder topicContext = new StringBuilder();
         if (topicId != null) {
@@ -114,6 +141,10 @@ public class ContentGenerationService {
                 truncate(userPrompt, 5000), response.model());
 
         Long id = ids.get(0);
+        Span current = Span.current();
+        if (current.getSpanContext().isValid()) {
+            current.setAttribute("word_count", (long) generatedText.split("\\s+").length);
+        }
         logger.info("Generated {} content (id={}) for topic {}", outputFormat, id, topicId);
         return id;
     }

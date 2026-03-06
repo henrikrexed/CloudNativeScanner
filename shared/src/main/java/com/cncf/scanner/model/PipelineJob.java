@@ -2,6 +2,8 @@ package com.cncf.scanner.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 @Entity
 @Table(name = "pipeline_jobs",
@@ -48,6 +50,10 @@ public class PipelineJob {
 
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
+
+    @Column(name = "metadata", columnDefinition = "jsonb")
+    @Convert(converter = com.cncf.scanner.model.JsonMapConverter.class)
+    private Map<String, Object> metadata = new HashMap<>();
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -116,6 +122,9 @@ public class PipelineJob {
 
     public String getErrorMessage() { return errorMessage; }
     public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
+
+    public Map<String, Object> getMetadata() { return metadata; }
+    public void setMetadata(Map<String, Object> metadata) { this.metadata = metadata != null ? metadata : new HashMap<>(); }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
 }
