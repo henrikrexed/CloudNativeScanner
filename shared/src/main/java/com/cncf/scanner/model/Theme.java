@@ -254,7 +254,7 @@ public class Theme {
             return name;
         } catch (Exception e) {
             // If any error occurs, just return the theme name or empty string
-            return name != null ? name : "";
+            return name;
         }
     }
     
