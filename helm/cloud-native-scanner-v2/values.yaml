@@ -19,6 +19,7 @@ postgresql:
   primary:
     persistence:
       size: 10Gi
+      storageClass:   # empty = cluster default
     initdb:
       scripts:
         enable-pgvector.sql: |
