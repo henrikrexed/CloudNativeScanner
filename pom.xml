@@ -89,6 +89,12 @@
                 <artifactId>opentelemetry-exporter-otlp-common</artifactId>
                 <version>${opentelemetry.version}</version>
             </dependency>
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-sdk-testing</artifactId>
+                <version>${opentelemetry.version}</version>
+                <scope>test</scope>
+            </dependency>
             <!-- Override Tomcat from Spring Boot BOM -->
             <dependency>
                 <groupId>org.apache.tomcat.embed</groupId>
