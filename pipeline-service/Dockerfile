@@ -6,9 +6,6 @@ WORKDIR /workspace
 COPY pom.xml ./
 COPY shared/pom.xml shared/
 COPY pipeline-service/pom.xml pipeline-service/
-COPY topic-scanner/pom.xml topic-scanner/
-COPY topic-analyzer/pom.xml topic-analyzer/
-COPY webui-api/pom.xml webui-api/
 
 # Download dependencies (cached unless poms change)
 RUN mvn dependency:go-offline -pl shared,pipeline-service -am -B -q || true
