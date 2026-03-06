@@ -1,14 +1,12 @@
 TopicScanner v2 has been deployed!
 
-{{- if .Values.ingress.enabled }}
+{{- if .Values.gateway.enabled }}
 Access the UI at:
-{{- range .Values.ingress.hosts }}
-  {{- if $.Values.ingress.tls }}
-  https://{{ .host }}
+  {{- if .Values.gateway.tls.enabled }}
+  https://{{ .Values.gateway.hostname }}
   {{- else }}
-  http://{{ .host }}
+  http://{{ .Values.gateway.hostname }}
   {{- end }}
-{{- end }}
 {{- else }}
 To access the UI, run:
   kubectl port-forward svc/{{ .Release.Name }}-webui {{ .Values.webui.service.port }}:{{ .Values.webui.service.port }}
