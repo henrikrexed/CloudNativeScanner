@@ -33,6 +33,8 @@ class ScanOrchestratorTest {
     private PipelineOrchestrator pipelineOrchestrator;
     @Mock
     private JdbcTemplate jdbcTemplate;
+    @Mock
+    private TelemetryService telemetryService;
 
     private ScanOrchestrator scanOrchestrator;
 

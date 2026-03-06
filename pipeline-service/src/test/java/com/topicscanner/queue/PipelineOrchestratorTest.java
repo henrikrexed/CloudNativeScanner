@@ -24,6 +24,8 @@ class PipelineOrchestratorTest {
 
     @Mock
     private PipelineJobRepository jobRepository;
+    @Mock
+    private TelemetryService telemetryService;
 
     private PipelineOrchestrator orchestrator;
     private TestStageHandler extractHandler;
