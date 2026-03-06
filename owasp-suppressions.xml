@@ -1,9 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
-    <!-- False positive: CVE-2023-39017 is for Quartz CMS (QuartzCMS.com), not quartz-scheduler -->
+    <!-- False positive: CVE-2023-39017 is for Quartz CMS, not org.quartz-scheduler -->
     <suppress>
-        <notes><![CDATA[CVE-2023-39017 applies to Quartz CMS, not org.quartz-scheduler:quartz]]></notes>
+        <notes><![CDATA[CVE-2023-39017 applies to Quartz CMS (QuartzCMS.com), not quartz-scheduler]]></notes>
         <packageUrl regex="true">^pkg:maven/org\.quartz-scheduler/quartz@.*$</packageUrl>
         <cve>CVE-2023-39017</cve>
+    </suppress>
+
+    <!-- False positive: CVE-2025-15104 is for Nu Html Checker (validator.nu), not hibernate-validator -->
+    <suppress>
+        <notes><![CDATA[CVE-2025-15104 is for Nu Html Checker (validator.nu), not org.hibernate.validator]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.hibernate\.validator/hibernate-validator@.*$</packageUrl>
+        <cve>CVE-2025-15104</cve>
+    </suppress>
+
+    <!-- False positive: CVE-2025-7962 matches angus-activation via CPE angus_mail, but angus-activation is not angus-mail -->
+    <suppress>
+        <notes><![CDATA[CVE-2025-7962 CPE mismatch: angus-activation is not angus-mail]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.eclipse\.angus/angus-activation@.*$</packageUrl>
+        <cve>CVE-2025-7962</cve>
+    </suppress>
+
+    <!-- False positive: CVE-2025-68161 matches log4j-api via CPE but applies to log4j-core (RCE via appenders), log4j-api alone is safe -->
+    <suppress>
+        <notes><![CDATA[CVE-2025-68161 applies to log4j-core, not log4j-api (which has no appenders)]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.logging\.log4j/log4j-api@.*$</packageUrl>
+        <cve>CVE-2025-68161</cve>
+    </suppress>
+
+    <!-- Netty CVEs: transitive dep from Spring WebFlux, low/medium severity, no fix available yet for all -->
+    <suppress>
+        <notes><![CDATA[Netty CVEs - transitive from Spring WebFlux, CVSS < 9, no full fix available]]></notes>
+        <packageUrl regex="true">^pkg:maven/io\.netty/netty-.*@.*$</packageUrl>
+        <cve>CVE-2025-55163</cve>
+        <cve>CVE-2025-58057</cve>
+        <cve>CVE-2025-67735</cve>
+        <cve>CVE-2025-58056</cve>
     </suppress>
 </suppressions>
