@@ -25,9 +25,10 @@ class YouTubeScannerTest {
         server = new MockWebServer();
         server.start();
 
-        WebClient.Builder builder = WebClient.builder()
-                .baseUrl(server.url("/").toString());
-        scanner = new YouTubeScanner(builder, "test-api-key");
+        WebClient webClient = WebClient.builder()
+                .baseUrl(server.url("/").toString())
+                .build();
+        scanner = new YouTubeScanner(webClient, "test-api-key");
     }
 
     @AfterEach

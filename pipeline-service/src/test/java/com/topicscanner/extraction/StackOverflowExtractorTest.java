@@ -22,9 +22,10 @@ class StackOverflowExtractorTest {
         server = new MockWebServer();
         server.start();
 
-        WebClient.Builder builder = WebClient.builder()
-                .baseUrl(server.url("/").toString());
-        extractor = new StackOverflowExtractor(builder);
+        WebClient webClient = WebClient.builder()
+                .baseUrl(server.url("/").toString())
+                .build();
+        extractor = new StackOverflowExtractor(webClient);
     }
 
     @AfterEach

@@ -33,6 +33,11 @@ public class StackOverflowScanner implements SourceScanner {
 
     private final WebClient webClient;
 
+    /* visible for testing */
+    StackOverflowScanner(WebClient webClient) {
+        this.webClient = webClient;
+    }
+
     public StackOverflowScanner(WebClient.Builder webClientBuilder) {
         this.webClient = webClientBuilder.clone()
                 .baseUrl(BASE_URL)

@@ -25,9 +25,11 @@ class HashnodeScannerTest {
         server = new MockWebServer();
         server.start();
 
-        WebClient.Builder builder = WebClient.builder()
-                .baseUrl(server.url("/").toString());
-        scanner = new HashnodeScanner(builder, "test-token");
+        WebClient webClient = WebClient.builder()
+                .baseUrl(server.url("/").toString())
+                .defaultHeader("Content-Type", "application/json")
+                .build();
+        scanner = new HashnodeScanner(webClient);
     }
 
     @AfterEach
@@ -142,7 +144,8 @@ class HashnodeScannerTest {
         noTokenServer.start();
 
         HashnodeScanner noTokenScanner = new HashnodeScanner(
-                WebClient.builder().baseUrl(noTokenServer.url("/").toString()), "");
+                WebClient.builder().baseUrl(noTokenServer.url("/").toString())
+                        .defaultHeader("Content-Type", "application/json").build());
 
         String json = """
                 {

@@ -34,6 +34,12 @@ public class YouTubeScanner implements SourceScanner {
     private final WebClient webClient;
     private final String apiKey;
 
+    /* visible for testing */
+    YouTubeScanner(WebClient webClient, String apiKey) {
+        this.webClient = webClient;
+        this.apiKey = apiKey;
+    }
+
     public YouTubeScanner(WebClient.Builder webClientBuilder,
                           @Value("${YOUTUBE_API_KEY:}") String apiKey) {
         this.webClient = webClientBuilder.clone()

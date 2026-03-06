@@ -105,7 +105,7 @@ class QualityFilterTest {
     }
 
     @Test
-    void getOrder_is60() {
-        assertEquals(60, filter.getOrder());
+    void getOrder_is45() {
+        assertEquals(45, filter.getOrder());
     }
 }

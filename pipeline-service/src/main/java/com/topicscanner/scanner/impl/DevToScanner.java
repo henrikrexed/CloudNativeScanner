@@ -30,6 +30,11 @@ public class DevToScanner implements SourceScanner {
 
     private final WebClient webClient;
 
+    /* visible for testing */
+    DevToScanner(WebClient webClient) {
+        this.webClient = webClient;
+    }
+
     public DevToScanner(WebClient.Builder webClientBuilder) {
         this.webClient = webClientBuilder.clone()
                 .baseUrl(BASE_URL)

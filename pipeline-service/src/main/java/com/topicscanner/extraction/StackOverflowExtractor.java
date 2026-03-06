@@ -28,6 +28,11 @@ public class StackOverflowExtractor {
 
     private final WebClient webClient;
 
+    /* visible for testing */
+    StackOverflowExtractor(WebClient webClient) {
+        this.webClient = webClient;
+    }
+
     public StackOverflowExtractor(WebClient.Builder webClientBuilder) {
         this.webClient = webClientBuilder.clone()
                 .baseUrl(API_BASE)

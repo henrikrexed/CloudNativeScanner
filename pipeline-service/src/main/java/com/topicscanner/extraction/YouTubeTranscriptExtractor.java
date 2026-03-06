@@ -213,7 +213,7 @@ public class YouTubeTranscriptExtractor {
                 .replaceAll("(?m)^Kind:.*$", "")
                 .replaceAll("(?m)^Language:.*$", "")
                 // Remove timestamp lines (00:00:01.000 --> 00:00:05.000)
-                .replaceAll("(?m)^[\\d:.]+\\s*-->\\s*[\\d:.]+.*$", "")
+                .replaceAll("(?m)^[\\d:.,]+\\s*-->\\s*[\\d:.,]+.*$", "")
                 // Remove SRT sequence numbers
                 .replaceAll("(?m)^\\d+$", "")
                 // Remove VTT positioning tags

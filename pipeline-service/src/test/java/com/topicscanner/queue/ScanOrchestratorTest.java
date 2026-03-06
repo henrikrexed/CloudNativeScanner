@@ -79,20 +79,16 @@ class ScanOrchestratorTest {
 
         when(scannerRegistry.getScanner("reddit"))
                 .thenReturn(Optional.of(new StubRedditScanner()));
-        when(jdbcTemplate.queryForObject(contains("SELECT id FROM sources"), eq(Long.class), eq("reddit")))
-                .thenReturn(1L);
-        // First topic is new
-        when(jdbcTemplate.queryForObject(contains("SELECT COUNT"), eq(Integer.class), eq(1L), eq("abc123")))
-                .thenReturn(0);
-        when(jdbcTemplate.queryForObject(contains("INSERT INTO topics"), eq(Long.class),
+        when(jdbcTemplate.queryForList(contains("SELECT id FROM sources"), eq(Long.class), eq("reddit")))
+                .thenReturn(List.of(1L));
+        // First topic is new (INSERT RETURNING id returns the new id)
+        when(jdbcTemplate.queryForList(contains("INSERT INTO topics"), eq(Long.class),
                 eq(1L), eq(1L), eq("abc123"), anyString(), anyString(), any()))
-                .thenReturn(100L);
+                .thenReturn(List.of(100L));
         // Second topic is new
-        when(jdbcTemplate.queryForObject(contains("SELECT COUNT"), eq(Integer.class), eq(1L), eq("https://reddit.com/r/docker/2")))
-                .thenReturn(0);
-        when(jdbcTemplate.queryForObject(contains("INSERT INTO topics"), eq(Long.class),
+        when(jdbcTemplate.queryForList(contains("INSERT INTO topics"), eq(Long.class),
                 eq(1L), eq(1L), eq("https://reddit.com/r/docker/2"), anyString(), anyString(), any()))
-                .thenReturn(101L);
+                .thenReturn(List.of(101L));
 
         when(pipelineOrchestrator.enqueue(any(), anyLong()))
                 .thenReturn(new PipelineJob(Stage.EXTRACT, 100L));
@@ -110,11 +106,12 @@ class ScanOrchestratorTest {
 
         when(scannerRegistry.getScanner("reddit"))
                 .thenReturn(Optional.of(new StubRedditScanner()));
-        when(jdbcTemplate.queryForObject(contains("SELECT id FROM sources"), eq(Long.class), eq("reddit")))
-                .thenReturn(1L);
-        // Both topics already exist
-        when(jdbcTemplate.queryForObject(contains("SELECT COUNT"), eq(Integer.class), anyLong(), anyString()))
-                .thenReturn(1);
+        when(jdbcTemplate.queryForList(contains("SELECT id FROM sources"), eq(Long.class), eq("reddit")))
+                .thenReturn(List.of(1L));
+        // Both topics already exist (INSERT ON CONFLICT returns empty list)
+        when(jdbcTemplate.queryForList(contains("INSERT INTO topics"), eq(Long.class),
+                anyLong(), anyLong(), anyString(), anyString(), anyString(), any()))
+                .thenReturn(List.of());
 
         int result = scanOrchestrator.scanCategory(category);
 

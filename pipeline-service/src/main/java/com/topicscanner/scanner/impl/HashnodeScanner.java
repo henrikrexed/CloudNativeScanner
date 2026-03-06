@@ -30,6 +30,11 @@ public class HashnodeScanner implements SourceScanner {
 
     private final WebClient webClient;
 
+    /* visible for testing */
+    HashnodeScanner(WebClient webClient) {
+        this.webClient = webClient;
+    }
+
     public HashnodeScanner(WebClient.Builder webClientBuilder,
                            @Value("${HASHNODE_API_TOKEN:}") String apiToken) {
         WebClient.Builder builder = webClientBuilder.clone()

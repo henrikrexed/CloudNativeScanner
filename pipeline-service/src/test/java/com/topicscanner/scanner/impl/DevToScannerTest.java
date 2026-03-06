@@ -25,9 +25,10 @@ class DevToScannerTest {
         server = new MockWebServer();
         server.start();
 
-        WebClient.Builder builder = WebClient.builder()
-                .baseUrl(server.url("/").toString());
-        scanner = new DevToScanner(builder);
+        WebClient webClient = WebClient.builder()
+                .baseUrl(server.url("/").toString())
+                .build();
+        scanner = new DevToScanner(webClient);
     }
 
     @AfterEach

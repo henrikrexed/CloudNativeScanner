@@ -26,9 +26,11 @@ class RedditScannerTest {
         server = new MockWebServer();
         server.start();
 
-        WebClient.Builder builder = WebClient.builder()
-                .baseUrl(server.url("/").toString());
-        scanner = new RedditScanner(builder);
+        WebClient webClient = WebClient.builder()
+                .baseUrl(server.url("/").toString())
+                .defaultHeader("User-Agent", "test")
+                .build();
+        scanner = new RedditScanner(webClient);
     }
 
     @AfterEach

@@ -35,6 +35,11 @@ public class RedditScanner implements SourceScanner {
 
     private final WebClient webClient;
 
+    /* visible for testing */
+    RedditScanner(WebClient webClient) {
+        this.webClient = webClient;
+    }
+
     public RedditScanner(WebClient.Builder webClientBuilder) {
         this.webClient = webClientBuilder.clone()
                 .baseUrl(BASE_URL)

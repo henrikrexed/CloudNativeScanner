@@ -30,7 +30,9 @@ class LanguageFilterTest {
 
     @Test
     void apply_passesEmptyContent() {
-        TopicContext ctx = new TopicContext(1L, "Title", "url", "medium",
+        // Title alone has no English stop words, so it should fail the language filter
+        // Use a title with enough English text to pass
+        TopicContext ctx = new TopicContext(1L, "This is the best guide for developers", "url", "medium",
                 null, "Tech", List.of(), List.of());
         assertTrue(filter.apply(ctx).passed());
     }

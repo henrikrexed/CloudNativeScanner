@@ -10,6 +10,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -39,8 +40,8 @@ class ExtractStageHandlerTest {
         PipelineJob job = new PipelineJob(Stage.EXTRACT, 42L);
         job.setId(1L);
 
-        when(jdbcTemplate.queryForMap(contains("SELECT url"), eq(42L)))
-                .thenReturn(Map.of("url", "https://example.com/post", "source_type", "medium"));
+        when(jdbcTemplate.queryForList(contains("SELECT url"), eq(42L)))
+                .thenReturn(List.of(Map.of("url", "https://example.com/post", "source_type", "medium")));
         when(contentExtractionService.extract("https://example.com/post", "medium"))
                 .thenReturn(Optional.of("Extracted content here"));
         when(pipelineOrchestrator.enqueue(any(), anyLong()))
@@ -57,8 +58,8 @@ class ExtractStageHandlerTest {
         PipelineJob job = new PipelineJob(Stage.EXTRACT, 42L);
         job.setId(1L);
 
-        when(jdbcTemplate.queryForMap(contains("SELECT url"), eq(42L)))
-                .thenReturn(Map.of("url", "https://example.com/paywalled", "source_type", "medium"));
+        when(jdbcTemplate.queryForList(contains("SELECT url"), eq(42L)))
+                .thenReturn(List.of(Map.of("url", "https://example.com/paywalled", "source_type", "medium")));
         when(contentExtractionService.extract("https://example.com/paywalled", "medium"))
                 .thenReturn(Optional.empty());
         when(pipelineOrchestrator.enqueue(any(), anyLong()))
