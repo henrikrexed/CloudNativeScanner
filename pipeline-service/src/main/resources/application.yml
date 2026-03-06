@@ -23,6 +23,9 @@ server:
 
 # Pipeline configuration
 topicscanner:
+  telemetry:
+    enabled: ${TOPICSCANNER_TELEMETRY_ENABLED:true}
+    service-name: ${OTEL_SERVICE_NAME:topicscanner-pipeline}
   scanner:
     plugins-dir: ${SCANNER_PLUGINS_DIR:plugins}
   pipeline:
