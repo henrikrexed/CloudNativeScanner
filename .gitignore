@@ -49,3 +49,20 @@ pipeline-service/target/
 site/
 *.class
 target/
+
+# Legacy v1 directories (still on disk, excluded from git)
+topic-scanner/
+topic-analyzer/
+webui/
+webui-api/
+k8s/
+scripts/
+docs/architecture/
+docs/deployment/
+docs/getting-started/
+docs/observability/
+docs/testing/
+docs/user-guide/
+helm/cloud-native-scanner/charts/
+*.md.disabled
+*workflow-init/

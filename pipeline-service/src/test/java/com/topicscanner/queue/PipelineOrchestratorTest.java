@@ -61,7 +61,7 @@ class PipelineOrchestratorTest {
     @BeforeEach
     void setUp() {
         extractHandler = new TestStageHandler(Stage.EXTRACT);
-        orchestrator = new PipelineOrchestrator(jobRepository, List.of(extractHandler));
+        orchestrator = new PipelineOrchestrator(jobRepository, List.of(extractHandler), 10);
     }
 
     @Test

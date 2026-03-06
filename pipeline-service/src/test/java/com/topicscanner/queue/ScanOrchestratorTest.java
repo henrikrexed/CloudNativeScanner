@@ -60,7 +60,7 @@ class ScanOrchestratorTest {
     @BeforeEach
     void setUp() {
         scanOrchestrator = new ScanOrchestrator(
-                categoryService, scannerRegistry, pipelineOrchestrator, jdbcTemplate);
+                categoryService, scannerRegistry, pipelineOrchestrator, jdbcTemplate, 100);
     }
 
     private Category createTestCategory() {

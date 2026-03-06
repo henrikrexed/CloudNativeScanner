@@ -55,7 +55,7 @@ class RelevanceFilterTest {
     void apply_passesOnLLMException() {
         RelevanceFilter filter = new RelevanceFilter(llmService, 0.7);
         when(llmService.complete(eq(LLMTaskType.RELEVANCE), any(), any()))
-                .thenThrow(new LLMException("Provider unavailable"));
+                .thenThrow(new LLMException("test", "Provider unavailable"));
 
         TopicContext ctx = new TopicContext(1L, "Title", "url", "medium",
                 "Content", "Tech", List.of("k8s"), List.of());

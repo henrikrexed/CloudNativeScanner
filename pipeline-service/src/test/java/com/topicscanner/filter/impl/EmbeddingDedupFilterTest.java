@@ -60,7 +60,7 @@ class EmbeddingDedupFilterTest {
     void apply_passesOnEmbeddingFailure() {
         EmbeddingDedupFilter filter = new EmbeddingDedupFilter(llmService, jdbcTemplate, 0.95);
 
-        when(llmService.embed(anyList())).thenThrow(new LLMException("Embedding failed"));
+        when(llmService.embed(anyList())).thenThrow(new LLMException("test", "Embedding failed"));
 
         TopicContext ctx = new TopicContext(1L, "Title", "url", "medium",
                 "Content", "Tech", List.of(), List.of());
