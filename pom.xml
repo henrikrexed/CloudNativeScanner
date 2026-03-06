@@ -89,7 +89,6 @@
                 <artifactId>opentelemetry-exporter-otlp-common</artifactId>
                 <version>${opentelemetry.version}</version>
             </dependency>
-        </dependencies>
             <!-- Override Tomcat from Spring Boot BOM -->
             <dependency>
                 <groupId>org.apache.tomcat.embed</groupId>
@@ -106,6 +105,7 @@
                 <artifactId>tomcat-embed-websocket</artifactId>
                 <version>10.1.39</version>
             </dependency>
+        </dependencies>
     </dependencyManagement>
 
     <dependencies>
