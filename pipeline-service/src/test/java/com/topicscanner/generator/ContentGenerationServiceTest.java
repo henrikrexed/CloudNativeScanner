@@ -34,7 +34,7 @@ class ContentGenerationServiceTest {
     @BeforeEach
     void setUp() {
         Tracer noopTracer = OpenTelemetry.noop().getTracer("test");
-        when(telemetryService.getTracer()).thenReturn(noopTracer);
+        lenient().when(telemetryService.getTracer()).thenReturn(noopTracer);
         service = new ContentGenerationService(
                 jdbcTemplate, llmService, styleAnalysisService, userContentService, telemetryService);
     }
