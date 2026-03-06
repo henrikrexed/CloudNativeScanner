@@ -2,6 +2,7 @@ package com.topicscanner.generator;
 
 import com.topicscanner.llm.LLMResponse;
 import com.topicscanner.llm.LLMService;
+import com.topicscanner.telemetry.TelemetryService;
 import com.topicscanner.llm.LLMTaskType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,13 +25,14 @@ class ContentGenerationServiceTest {
     @Mock private LLMService llmService;
     @Mock private StyleAnalysisService styleAnalysisService;
     @Mock private UserContentService userContentService;
+    @Mock private TelemetryService telemetryService;
 
     private ContentGenerationService service;
 
     @BeforeEach
     void setUp() {
         service = new ContentGenerationService(
-                jdbcTemplate, llmService, styleAnalysisService, userContentService);
+                jdbcTemplate, llmService, styleAnalysisService, userContentService, telemetryService);
     }
 
     @Test

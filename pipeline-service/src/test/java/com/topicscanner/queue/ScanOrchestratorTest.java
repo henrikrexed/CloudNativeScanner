@@ -5,6 +5,7 @@ import com.cncf.scanner.model.PipelineJob;
 import com.cncf.scanner.model.PipelineJob.Stage;
 import com.cncf.scanner.service.CategoryService;
 import com.topicscanner.scanner.*;
+import com.topicscanner.telemetry.TelemetryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -60,7 +61,7 @@ class ScanOrchestratorTest {
     @BeforeEach
     void setUp() {
         scanOrchestrator = new ScanOrchestrator(
-                categoryService, scannerRegistry, pipelineOrchestrator, jdbcTemplate, 100);
+                categoryService, scannerRegistry, pipelineOrchestrator, jdbcTemplate, 100, telemetryService);
     }
 
     private Category createTestCategory() {

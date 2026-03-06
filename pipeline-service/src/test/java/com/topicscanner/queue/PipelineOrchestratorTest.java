@@ -4,6 +4,7 @@ import com.cncf.scanner.model.PipelineJob;
 import com.cncf.scanner.model.PipelineJob.Stage;
 import com.cncf.scanner.model.PipelineJob.Status;
 import com.cncf.scanner.repository.PipelineJobRepository;
+import com.topicscanner.telemetry.TelemetryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -61,7 +62,7 @@ class PipelineOrchestratorTest {
     @BeforeEach
     void setUp() {
         extractHandler = new TestStageHandler(Stage.EXTRACT);
-        orchestrator = new PipelineOrchestrator(jobRepository, List.of(extractHandler), 10);
+        orchestrator = new PipelineOrchestrator(jobRepository, List.of(extractHandler), 10, telemetryService);
     }
 
     @Test
