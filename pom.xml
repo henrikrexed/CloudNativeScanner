@@ -34,7 +34,7 @@
         <spotbugs.version>4.7.3.5</spotbugs.version>
         <spotless.version>2.40.0</spotless.version>
         <opentelemetry.version>1.46.0</opentelemetry.version>
-        <tomcat.version>10.1.39</tomcat.version>
+        
     </properties>
 
     <repositories>
@@ -90,6 +90,22 @@
                 <version>${opentelemetry.version}</version>
             </dependency>
         </dependencies>
+            <!-- Override Tomcat from Spring Boot BOM -->
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-core</artifactId>
+                <version>10.1.39</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-el</artifactId>
+                <version>10.1.39</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-websocket</artifactId>
+                <version>10.1.39</version>
+            </dependency>
     </dependencyManagement>
 
     <dependencies>
