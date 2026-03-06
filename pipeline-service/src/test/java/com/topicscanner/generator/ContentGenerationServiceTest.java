@@ -3,6 +3,8 @@ package com.topicscanner.generator;
 import com.topicscanner.llm.LLMResponse;
 import com.topicscanner.llm.LLMService;
 import com.topicscanner.telemetry.TelemetryService;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Tracer;
 import com.topicscanner.llm.LLMTaskType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +33,8 @@ class ContentGenerationServiceTest {
 
     @BeforeEach
     void setUp() {
+        Tracer noopTracer = OpenTelemetry.noop().getTracer("test");
+        when(telemetryService.getTracer()).thenReturn(noopTracer);
         service = new ContentGenerationService(
                 jdbcTemplate, llmService, styleAnalysisService, userContentService, telemetryService);
     }
