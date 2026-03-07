@@ -1,5 +1,11 @@
 # TopicScanner
 
+[![CI](https://github.com/henrikrexed/CloudNativeScanner/actions/workflows/ci.yaml/badge.svg)](https://github.com/henrikrexed/CloudNativeScanner/actions/workflows/ci.yaml)
+[![License](https://img.shields.io/github/license/henrikrexed/CloudNativeScanner)](LICENSE)
+[![Java](https://img.shields.io/badge/Java-17%2B-blue)](https://openjdk.org)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.3-brightgreen)](https://spring.io/projects/spring-boot)
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://henrikrexed.github.io/CloudNativeScanner/)
+
 AI-powered DevRel intelligence platform. Automatically discovers trending topics from developer communities, extracts and analyzes content with LLMs, and generates publication-ready material.
 
 ## Architecture
