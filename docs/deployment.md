@@ -5,13 +5,14 @@
 The v2 Helm chart is at `helm/cloud-native-scanner-v2/`. It deploys:
 
 - **PostgreSQL** (Bitnami subchart) with pgvector extension
-- **pipeline-service** (Spring Boot)
+- **pipeline-service** (Spring Boot 3.4.3)
 - **webui** (Next.js)
 
 ### Prerequisites
 
-- Kubernetes 1.24+
+- Kubernetes 1.28+
 - Helm 3.x
+- [Gateway API CRDs](https://gateway-api.sigs.k8s.io/) installed
 - (Optional) Ollama running in-cluster or accessible externally
 
 ### Quick Install
@@ -51,18 +52,45 @@ helm install scanner helm/cloud-native-scanner-v2/ \
 !!! note
     Claude does not support embeddings. Enable a fallback provider (Ollama or OpenAI) for embedding tasks.
 
-### Enable Ingress
+### Enable Gateway API Routing
+
+TopicScanner uses the [Kubernetes Gateway API](https://gateway-api.sigs.k8s.io/) for external traffic routing. Supported GatewayClass providers include **Istio**, **Cilium**, **Traefik**, **Envoy Gateway**, and others.
+
+#### Create a new Gateway
 
 ```bash
 helm install scanner helm/cloud-native-scanner-v2/ \
-  --set ingress.enabled=true \
-  --set ingress.className=nginx \
-  --set ingress.hosts[0].host=scanner.example.com \
-  --set ingress.hosts[0].paths[0].path=/ \
-  --set ingress.hosts[0].paths[0].pathType=Prefix
+  --set gateway.enabled=true \
+  --set gateway.className=istio \
+  --set gateway.hostname=scanner.example.com
 ```
 
-The ingress routes `/api/*` to pipeline-service and everything else to the webui.
+#### Reference an existing Gateway
+
+If you already have a shared Gateway in your cluster:
+
+```bash
+helm install scanner helm/cloud-native-scanner-v2/ \
+  --set gateway.enabled=true \
+  --set gateway.create=false \
+  --set gateway.gatewayRef=shared-gateway \
+  --set gateway.gatewayRefNamespace=gateway-system \
+  --set gateway.hostname=scanner.example.com
+```
+
+!!! tip
+    HTTPRoutes direct `/api/*` to pipeline-service and all other paths to the webui.
+
+#### Enable TLS
+
+```bash
+helm install scanner helm/cloud-native-scanner-v2/ \
+  --set gateway.enabled=true \
+  --set gateway.className=istio \
+  --set gateway.hostname=scanner.example.com \
+  --set gateway.tls.enabled=true \
+  --set gateway.tls.secretName=scanner-tls
+```
 
 ### Enable Scanners
 
@@ -165,15 +193,21 @@ When `postgresql.enabled=false`:
 | `pgvector.enabled` | Enable pgvector | `true` |
 | `pgvector.dimensions` | Vector dimensions | `1536` |
 
-### Ingress
+### Gateway API
+
+TopicScanner uses the [Kubernetes Gateway API](https://gateway-api.sigs.k8s.io/) for routing external traffic. Supported providers include Istio, Cilium, Traefik, Envoy Gateway, and any conformant GatewayClass implementation.
 
 | Value | Description | Default |
 |-------|-------------|---------|
-| `ingress.enabled` | Enable ingress | `false` |
-| `ingress.className` | Ingress class | `nginx` |
-| `ingress.annotations` | Ingress annotations | `{}` |
-| `ingress.hosts` | Host rules | `[{host: scanner.example.com}]` |
-| `ingress.tls` | TLS config | `[]` |
+| `gateway.enabled` | Enable Gateway API routing | `false` |
+| `gateway.create` | Create a Gateway resource | `true` |
+| `gateway.className` | GatewayClass (istio, cilium, traefik, etc.) | `""` |
+| `gateway.gatewayRef` | Reference existing Gateway (skips create) | `""` |
+| `gateway.gatewayRefNamespace` | Namespace of existing Gateway | `""` |
+| `gateway.hostname` | Hostname for listener and HTTPRoutes | `scanner.example.com` |
+| `gateway.annotations` | Gateway annotations | `{}` |
+| `gateway.tls.enabled` | Enable TLS | `false` |
+| `gateway.tls.secretName` | TLS secret name | `scanner-tls` |
 
 ## pgvector Setup
 
