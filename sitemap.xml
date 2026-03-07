@@ -1,39 +1,39 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://cloud-native-scanner.github.io/</loc>
+         <loc>https://henrikrexed.github.io/CloudNativeScanner/</loc>
          <lastmod>2026-03-07</lastmod>
     </url>
     <url>
-         <loc>https://cloud-native-scanner.github.io/api-reference/</loc>
+         <loc>https://henrikrexed.github.io/CloudNativeScanner/api-reference/</loc>
          <lastmod>2026-03-07</lastmod>
     </url>
     <url>
-         <loc>https://cloud-native-scanner.github.io/architecture/</loc>
+         <loc>https://henrikrexed.github.io/CloudNativeScanner/architecture/</loc>
          <lastmod>2026-03-07</lastmod>
     </url>
     <url>
-         <loc>https://cloud-native-scanner.github.io/configuration/</loc>
+         <loc>https://henrikrexed.github.io/CloudNativeScanner/configuration/</loc>
          <lastmod>2026-03-07</lastmod>
     </url>
     <url>
-         <loc>https://cloud-native-scanner.github.io/content-studio/</loc>
+         <loc>https://henrikrexed.github.io/CloudNativeScanner/content-studio/</loc>
          <lastmod>2026-03-07</lastmod>
     </url>
     <url>
-         <loc>https://cloud-native-scanner.github.io/deployment/</loc>
+         <loc>https://henrikrexed.github.io/CloudNativeScanner/deployment/</loc>
          <lastmod>2026-03-07</lastmod>
     </url>
     <url>
-         <loc>https://cloud-native-scanner.github.io/development/</loc>
+         <loc>https://henrikrexed.github.io/CloudNativeScanner/development/</loc>
          <lastmod>2026-03-07</lastmod>
     </url>
     <url>
-         <loc>https://cloud-native-scanner.github.io/llm-models/</loc>
+         <loc>https://henrikrexed.github.io/CloudNativeScanner/llm-models/</loc>
          <lastmod>2026-03-07</lastmod>
     </url>
     <url>
-         <loc>https://cloud-native-scanner.github.io/scanners/</loc>
+         <loc>https://henrikrexed.github.io/CloudNativeScanner/scanners/</loc>
          <lastmod>2026-03-07</lastmod>
     </url>
 </urlset>
