@@ -1,7 +1,7 @@
 site_name: TopicScanner
 site_description: AI-powered DevRel intelligence platform
-site_url: https://cloud-native-scanner.github.io
-repo_url: https://github.com/cloud-native-scanner/CloudNativeScanner
+site_url: https://henrikrexed.github.io/CloudNativeScanner
+repo_url: https://github.com/henrikrexed/CloudNativeScanner
 repo_name: CloudNativeScanner
 
 theme:

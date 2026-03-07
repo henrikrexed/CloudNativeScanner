@@ -78,7 +78,7 @@ jobs:
   docker:
     name: Docker Build & Push
     runs-on: ubuntu-latest
-    needs: [java, nextjs]
+    needs: [java]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     strategy:
       matrix:
@@ -139,7 +139,7 @@ jobs:
   docs:
     name: MkDocs Build & Deploy
     runs-on: ubuntu-latest
-    needs: [java, nextjs]
+    needs: []
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: write
