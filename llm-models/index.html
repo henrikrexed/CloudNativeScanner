@@ -1459,21 +1459,21 @@
 <tr>
 <td><strong>Relevance</strong></td>
 <td>Score topic relevance to categories (0.0–1.0)</td>
-<td><code>qwen2.5:14b</code></td>
+<td><code>qwen3:14b</code></td>
 <td>~10 GB</td>
 <td><code>gpt-4o-mini</code></td>
 </tr>
 <tr>
 <td><strong>Classification</strong></td>
 <td>Categorize topics into themes</td>
-<td><code>qwen2.5:14b</code></td>
+<td><code>qwen3:14b</code></td>
 <td>~10 GB</td>
 <td><code>gpt-4o-mini</code></td>
 </tr>
 <tr>
 <td><strong>Summarization</strong></td>
 <td>Summarize extracted content</td>
-<td><code>qwen2.5:32b</code></td>
+<td><code>qwen3:32b</code></td>
 <td>~20 GB</td>
 <td><code>gpt-4o</code></td>
 </tr>
@@ -1487,7 +1487,7 @@
 <tr>
 <td><strong>Generation</strong></td>
 <td>Generate blog posts, scripts, newsletters</td>
-<td><code>qwen2.5:32b</code></td>
+<td><code>qwen3:32b</code></td>
 <td>~20 GB</td>
 <td><code>gpt-4o</code></td>
 </tr>
@@ -1502,27 +1502,27 @@
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>ollama<span class="w"> </span>--version
 </code></pre></div>
 <h3 id="2-pull-required-models">2. Pull Required Models<a class="headerlink" href="#2-pull-required-models" title="Permanent link">&para;</a></h3>
-<p>Pull all 3 models (qwen2.5:14b, qwen2.5:32b, nomic-embed-text):</p>
+<p>Pull all 3 models (qwen3:14b, qwen3:32b, nomic-embed-text):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Embedding model (small, fast — pull first)</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>ollama<span class="w"> </span>pull<span class="w"> </span>nomic-embed-text
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Relevance + Classification model (14B parameters)</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>ollama<span class="w"> </span>pull<span class="w"> </span>qwen2.5:14b
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>ollama<span class="w"> </span>pull<span class="w"> </span>qwen3:14b
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
 <a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Summarization + Generation model (32B parameters)</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>ollama<span class="w"> </span>pull<span class="w"> </span>qwen2.5:32b
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>ollama<span class="w"> </span>pull<span class="w"> </span>qwen3:32b
 </code></pre></div>
 <h3 id="3-verify-models">3. Verify Models<a class="headerlink" href="#3-verify-models" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>ollama<span class="w"> </span>list
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="c1"># Should show:</span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="c1"># NAME                ID          SIZE    MODIFIED</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># qwen2.5:14b         ...         9.0 GB  ...</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="c1"># qwen2.5:32b         ...         19 GB   ...</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># qwen3:14b         ...         9.0 GB  ...</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="c1"># qwen3:32b         ...         19 GB   ...</span>
 <a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="c1"># nomic-embed-text    ...         274 MB  ...</span>
 </code></pre></div>
 <h3 id="4-test-models">4. Test Models<a class="headerlink" href="#4-test-models" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Test chat model</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>ollama<span class="w"> </span>run<span class="w"> </span>qwen2.5:14b<span class="w"> </span><span class="s2">&quot;What is Kubernetes?&quot;</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>ollama<span class="w"> </span>run<span class="w"> </span>qwen3:14b<span class="w"> </span><span class="s2">&quot;What is Kubernetes?&quot;</span>
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Test embedding model</span>
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>curl<span class="w"> </span>http://localhost:11434/api/embed<span class="w"> </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;model&quot;:&quot;nomic-embed-text&quot;,&quot;input&quot;:&quot;test&quot;}&#39;</span>
@@ -1532,7 +1532,7 @@
 <ul>
 <li><strong>GPU:</strong> 12 GB VRAM (e.g., RTX 3060 12GB, RTX 4070)</li>
 <li><strong>RAM:</strong> 16 GB system RAM</li>
-<li><strong>Models:</strong> <code>qwen2.5:14b</code> + <code>nomic-embed-text</code></li>
+<li><strong>Models:</strong> <code>qwen3:14b</code> + <code>nomic-embed-text</code></li>
 <li><strong>Note:</strong> Summarization and generation will fall back to cloud provider</li>
 </ul>
 <h3 id="recommended-all-tasks-local">Recommended (all tasks local)<a class="headerlink" href="#recommended-all-tasks-local" title="Permanent link">&para;</a></h3>
@@ -1553,8 +1553,8 @@
 <p>Ollama can run on CPU but will be significantly slower:</p>
 <ul>
 <li><code>nomic-embed-text</code>: Fast on CPU (~100ms per embedding)</li>
-<li><code>qwen2.5:14b</code>: Usable (~10-30s per response)</li>
-<li><code>qwen2.5:32b</code>: Very slow (~60-120s per response) — recommend cloud fallback</li>
+<li><code>qwen3:14b</code>: Usable (~10-30s per response)</li>
+<li><code>qwen3:32b</code>: Very slow (~60-120s per response) — recommend cloud fallback</li>
 </ul>
 <h2 id="kubernetes-deployment">Kubernetes Deployment<a class="headerlink" href="#kubernetes-deployment" title="Permanent link">&para;</a></h2>
 <p>When running Ollama in Kubernetes, you have two options:</p>
@@ -1621,8 +1621,8 @@
 </code></pre></div>
 <p>Then pull models inside the pod:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kubectl<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>deploy/ollama<span class="w"> </span>--<span class="w"> </span>ollama<span class="w"> </span>pull<span class="w"> </span>nomic-embed-text
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>kubectl<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>deploy/ollama<span class="w"> </span>--<span class="w"> </span>ollama<span class="w"> </span>pull<span class="w"> </span>qwen2.5:14b
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>kubectl<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>deploy/ollama<span class="w"> </span>--<span class="w"> </span>ollama<span class="w"> </span>pull<span class="w"> </span>qwen2.5:32b
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>kubectl<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>deploy/ollama<span class="w"> </span>--<span class="w"> </span>ollama<span class="w"> </span>pull<span class="w"> </span>qwen3:14b
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>kubectl<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>deploy/ollama<span class="w"> </span>--<span class="w"> </span>ollama<span class="w"> </span>pull<span class="w"> </span>qwen3:32b
 </code></pre></div>
 <h2 id="alternative-models">Alternative Models<a class="headerlink" href="#alternative-models" title="Permanent link">&para;</a></h2>
 <p>You can swap models by overriding environment variables:</p>
@@ -1648,7 +1648,7 @@
 <tr>
 <td>Summarization</td>
 <td><code>LLM_OLLAMA_MODEL_SUMMARIZATION</code></td>
-<td><code>llama3.1:70b</code>, <code>qwen2.5:72b</code>, <code>mixtral:8x7b</code></td>
+<td><code>llama3.1:70b</code>, <code>qwen3:72b</code>, <code>mixtral:8x7b</code></td>
 </tr>
 <tr>
 <td>Embedding</td>
@@ -1658,7 +1658,7 @@
 <tr>
 <td>Generation</td>
 <td><code>LLM_OLLAMA_MODEL_GENERATION</code></td>
-<td><code>llama3.1:70b</code>, <code>qwen2.5:72b</code>, <code>mixtral:8x7b</code></td>
+<td><code>llama3.1:70b</code>, <code>qwen3:72b</code>, <code>mixtral:8x7b</code></td>
 </tr>
 </tbody>
 </table>
@@ -1667,7 +1667,7 @@
 <li><strong>Smaller models</strong> (7-8B): Faster, less VRAM, slightly lower quality. Good for relevance/classification.</li>
 <li><strong>Larger models</strong> (32-72B): Better quality for summarization and content generation. Need more VRAM.</li>
 <li><strong>Embedding models</strong>: <code>nomic-embed-text</code> is the best balance of quality/speed. <code>mxbai-embed-large</code> is slightly better but larger.</li>
-<li><strong>Quantization</strong>: Ollama models are quantized (Q4_K_M by default). For better quality at the cost of more VRAM, use <code>qwen2.5:14b-instruct-fp16</code>.</li>
+<li><strong>Quantization</strong>: Ollama models are quantized (Q4_K_M by default). For better quality at the cost of more VRAM, use <code>qwen3:14b-instruct-fp16</code>.</li>
 </ul>
 <h2 id="cloud-fallback-configuration">Cloud Fallback Configuration<a class="headerlink" href="#cloud-fallback-configuration" title="Permanent link">&para;</a></h2>
 <p>When Ollama is unavailable or a task fails, TopicScanner falls back to a cloud provider:</p>
@@ -1757,7 +1757,7 @@
 </ul>
 <h3 id="out-of-memory">Out of Memory<a class="headerlink" href="#out-of-memory" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Use smaller models: replace <code>qwen2.5:32b</code> with <code>qwen2.5:14b</code> for summarization/generation</li>
+<li>Use smaller models: replace <code>qwen3:32b</code> with <code>qwen3:14b</code> for summarization/generation</li>
 <li>Enable cloud fallback for the heavy tasks (summarization, generation) and run only relevance/classification/embedding locally</li>
 <li>Set <code>OLLAMA_NUM_PARALLEL=1</code> to prevent concurrent model loading</li>
 </ul>
